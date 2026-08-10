@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --primary: #3B82F6;
+  --primary-hover: #2563EB;
+  --secondary: #60A5FA;
+  --bg: #F7FAFF;
+  --card: #FFFFFF;
+  --border: #D9E6F8;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --info: #0EA5E9;
+  --text: #1E293B;
+  --subtext: #64748B;
+  --disabled: #CBD5E1;
+
+  /* Typography System Design Tokens */
+  --font-family: "Poppins", sans-serif;
+  --font-size-display: 36px;
+  --font-size-h1: 2rem;
+  --font-size-h2: 1.75rem;
+  --font-size-h3: 24px;
+  --font-size-h4: 20px;
+  --font-size-h5: 18px;
+  --font-size-h6: 16px;
+  --font-size-body-lg: 16px;
+  --font-size-body: 0.875rem;
+  --font-size-small: 13px;
+  --font-size-caption: 12px;
+  --font-size-button: 14px;
+
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  --line-height-display: 1.2;
+  --line-height-heading: 1.3;
+  --line-height-body: 1.6;
+  --line-height-caption: 1.5;
+
+  --letter-spacing-display: -0.5px;
+  --letter-spacing-heading: -0.2px;
+  --letter-spacing-body: 0;
+  --letter-spacing-button: 0.2px;
+  --letter-spacing-caption: 0.2px;
+
+  /* Color Palette Design Tokens (Document 04) */
+  --color-primary-50: #EFF6FF;
+  --color-primary-100: #DBEAFE;
+  --color-primary-200: #BFDBFE;
+  --color-primary-300: #93C5FD;
+  --color-primary-400: #60A5FA;
+  --color-primary-500: #3B82F6;
+  --color-primary-600: #2563EB;
+  --color-primary-700: #1D4ED8;
+  --color-primary-800: #1E40AF;
+  --color-primary-900: #1E3A8A;
+
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #0EA5E9;
+  --color-background: #F7FAFF;
+  --color-surface: #FFFFFF;
+  --color-border: #D9E6F8;
+  --color-text: #1E293B;
+  --color-muted: #64748B;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-circle: 999px;
+
+  --shadow-card: 0 10px 25px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 12px 30px rgba(0, 0, 0, 0.12);
+  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.10);
+  --shadow-modal: 0 18px 50px rgba(0, 0, 0, 0.18);
+
+  --button-height-desktop: 42px;
+  --button-height-mobile: 40px;
+  --input-height: 44px;
+}
+
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Custom Brand Theme Colors */
+  --color-primary: #3B82F6;
+  --color-primary-hover: #2563EB;
+  --color-secondary: #60A5FA;
+  --color-bg: #F7FAFF;
+  --color-card-custom: #FFFFFF;
+  --color-border-custom: #D9E6F8;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #0EA5E9;
+
+  /* Material 3 / Brand compatibility mapping */
+  --color-m3-purple: #3B82F6;
+  --color-m3-purple-dark: #2563EB;
+  --color-m3-purple-light: #EFF6FF;
+  --color-m3-border: #D9E6F8;
+  --color-m3-bg: #F7FAFF;
+  --color-m3-text: #1E293B;
+  --color-m3-sec-text: #64748B;
+  --color-m3-pink-bg: #FEE2E2;
+  --color-m3-pink-text: #991B1B;
+  --color-m3-lilac: #EFF6FF;
+  --color-m3-lavender: #DBEAFE;
+  --color-m3-blue-light: #E0F2FE;
+  --color-m3-blue-dark: #1E3A8A;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-[#F7FAFF] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 antialiased selection:bg-blue-500/20 selection:text-blue-600 transition-colors duration-300;
+    font-size: 14px;
+  }
+}
+
+/* Custom UI Polish & Utilities */
+.custom-card-shadow {
+  box-shadow: var(--shadow-card);
+}
+
+.custom-card-shadow:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+/* Form & Input Global Styles */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="time"],
+select {
+  font-size: 14px;
+}
+
+/* Table styling helpers */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom Smooth Touch Scrollbars for Tables & Panels */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+

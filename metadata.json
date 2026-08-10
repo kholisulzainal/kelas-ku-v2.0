@@ -1,0 +1,8 @@
+{
+  "name": "Kelas Ku v2.0 2026",
+  "description": "Kelas Ku v2.0 2026 Pengelolaan Kelas Kurikulum Merdeka & Terintegrasi Google Apps",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
