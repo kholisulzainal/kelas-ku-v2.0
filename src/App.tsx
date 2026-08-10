@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { ThemeProvider, useTheme } from './components/ThemeContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
+import { Footer } from './components/Footer';
 import { NotificationCenter } from './components/NotificationCenter';
 import { GuruDashboard } from './pages/GuruDashboard';
 import { SiswaDashboard } from './pages/SiswaDashboard';
@@ -146,7 +147,7 @@ function MainApp() {
 
       <div className="flex flex-col lg:flex-row flex-1 relative">
         {/* Navigation Sidebar for Desktop */}
-        <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-m3-border dark:border-slate-800/50 bg-white dark:bg-slate-950 min-h-[calc(100vh-73px)]">
+        <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-m3-border dark:border-slate-800/50 bg-white dark:bg-slate-950 sticky top-[64px] h-[calc(100vh-64px)] overflow-y-auto overscroll-contain">
           <Sidebar
             currentRole={currentRole}
             activeTab={activeTab}
@@ -208,19 +209,22 @@ function MainApp() {
         </AnimatePresence>
 
         {/* Dynamic Main Stage */}
-        <main className="flex-1 p-4 sm:p-6 overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${currentRole}-${activeTab}`}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.25 }}
-              className="h-full"
-            >
-              {renderContent()}
-            </motion.div>
-          </AnimatePresence>
+        <main className="flex-1 p-4 sm:p-6 overflow-x-hidden flex flex-col justify-between min-h-[calc(100vh-64px)]">
+          <div className="flex-1">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${currentRole}-${activeTab}`}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+                className="h-full"
+              >
+                {renderContent()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+          <Footer />
         </main>
       </div>
     </div>

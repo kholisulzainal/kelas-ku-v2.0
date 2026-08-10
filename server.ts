@@ -2,10 +2,61 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { createClient } from '@supabase/supabase-js';
+import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
 process.env.TZ = 'Asia/Jakarta';
+
+let geminiAiClient: GoogleGenAI | null = null;
+function getGeminiClient() {
+  if (!geminiAiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY belum dikonfigurasi di lingkungan server.');
+    }
+    geminiAiClient = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build'
+        }
+      }
+    });
+  }
+  return geminiAiClient;
+}
+
+async function generateContentWithFallback(ai: GoogleGenAI, params: {
+  contents: any[];
+  config: any;
+}) {
+  const modelsToTry = ['gemini-3.6-flash', 'gemini-2.5-pro'];
+  let lastError: any = null;
+
+  for (const model of modelsToTry) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: params.contents,
+          config: params.config,
+        });
+        if (response && response.text) {
+          return response;
+        }
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[Gemini AI] Attempt ${attempt} on model ${model} failed:`, err?.message || err);
+        if (attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error('Semua model AI sedang sibuk atau mengalami peningkatan beban. Silakan coba beberapa saat lagi.');
+}
 
 function getWibDateString(date: Date = new Date()): string {
   try {
@@ -638,6 +689,67 @@ async function startServer() {
   };
 
   app.post('/api/sync-sheet-scores', handleSyncSheetScores);
+
+  // =========================================================================
+  // 1C. ENDPOINT AI TUTOR & ASISTEN PEDAGOGI GURU (GEMINI AI)
+  // =========================================================================
+  const handleAiTutorGuru = async (req: Request, res: Response) => {
+    try {
+      const { prompt, history } = req.body || {};
+
+      if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Pertanyaan atau topik konsultasi tidak boleh kosong.'
+        });
+      }
+
+      const ai = getGeminiClient();
+
+      const systemInstruction = `Anda adalah "AI Tutor Guru", asisten cerdas dan sahabat diskusi bagi para guru di Indonesia.
+
+Peran & Sikap Anda:
+1. Ramah, empatik, praktis, dan profesional.
+2. Memberikan solusi konkrit, langkah demi langkah, serta ide-ide kreatif untuk mengajar, mengatasi kendala kelas, pembelajaran berdiferensiasi Kurikulum Merdeka, ice breaking, serta asesmen.
+3. Menyampaikan jawaban dalam Bahasa Indonesia yang lugas, mudah dipahami, dengan format Markdown yang rapi (bold heading, bullet points, langkah terstruktur).`;
+
+      let contentsPayload: any[] = [];
+      if (Array.isArray(history) && history.length > 0) {
+        for (const item of history) {
+          if (item.role === 'user' && item.text) {
+            contentsPayload.push({ role: 'user', parts: [{ text: item.text }] });
+          } else if (item.role === 'model' && item.text) {
+            contentsPayload.push({ role: 'model', parts: [{ text: item.text }] });
+          }
+        }
+      }
+      contentsPayload.push({ role: 'user', parts: [{ text: prompt.trim() }] });
+
+      const response = await generateContentWithFallback(ai, {
+        contents: contentsPayload,
+        config: {
+          systemInstruction,
+          temperature: 0.7,
+        }
+      });
+
+      const replyText = response.text || 'Maaf, AI Tutor belum dapat menghasilkan jawaban saat ini. Silakan coba ajukan pertanyaan kembali.';
+
+      return res.status(200).json({
+        success: true,
+        reply: replyText,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error('[AI Tutor Guru Error]:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'Gagal terhubung ke AI Tutor: ' + (err?.message || 'Pastikan API Key Gemini terkonfigurasi dengan benar.')
+      });
+    }
+  };
+
+  app.post('/api/ai/tutor', handleAiTutorGuru);
 
   // Health check endpoint
   app.get('/api/health', (req, res) => {

@@ -47,6 +47,9 @@ import {
 import { GoogleAppsScriptModal } from '../components/GoogleAppsScriptModal';
 import { AplikasiSetting } from '../components/AplikasiSetting';
 import { BukuDigitalView } from '../components/BukuDigitalView';
+import { AiTutorGuruView } from '../components/AiTutorGuruView';
+import { AiGeneratorSoalView } from '../components/AiGeneratorSoalView';
+import { AiPerangkatAjarView } from '../components/AiPerangkatAjarView';
 import { AsesmenMatrixTable } from '../components/AsesmenMatrixTable';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { db } from '../services/db';
@@ -5924,6 +5927,21 @@ export function GuruDashboard({ activeTab }: GuruDashboardProps) {
             })}
           </div>
         </div>
+      )}
+
+      {/* AI TUTOR & ASISTEN PEDAGOGI GURU */}
+      {activeTab === 'ai_tutor' && (
+        <AiTutorGuruView currentUserId={loggedInUserId} />
+      )}
+
+      {/* AI GENERATOR SOAL */}
+      {activeTab === 'ai_generator_soal' && (
+        <AiGeneratorSoalView />
+      )}
+
+      {/* AI PERANGKAT AJAR */}
+      {activeTab === 'ai_perangkat_ajar' && (
+        <AiPerangkatAjarView />
       )}
 
       {/* 10. BUKU DIGITAL & MODUL */}
