@@ -359,7 +359,7 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
   };
 
   return (
-    <div className="w-full h-full bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-col justify-between shrink-0 border-r border-[#DCE8F7] dark:border-slate-800 overflow-y-auto overscroll-contain">
+    <div className="w-full h-full bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-col justify-between shrink-0 border-r border-[#DCE8F7] dark:border-slate-800">
       <div className="space-y-3">
         <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
           Navigasi Utama ({currentRole === 'operator' ? 'Operator' : currentRole === 'guru' ? 'Guru' : currentRole === 'siswa' ? 'Siswa' : 'Orang Tua'})
@@ -371,16 +371,13 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
       </div>
 
       {/* Footer Branding inside sidebar */}
-      <div className="mt-6 border-t border-[#DCE8F7] dark:border-slate-800 pt-4 px-1 space-y-2 shrink-0">
+      <div className="mt-6 border-t border-[#DCE8F7] dark:border-slate-800 pt-4 px-1 space-y-1.5 shrink-0">
         <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
           <GraduationCap className="w-5 h-5 shrink-0" />
           <span className="font-bold text-xs tracking-wider">Kelas Ku v2.0 2026</span>
         </div>
         <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
-          Pengelolaan Kelas Kurikulum Merdeka &amp; Terintegrasi Google Apps.
-        </p>
-        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-          Pengembang: Kholisul Zainal A.S, S.Pd.
+          Pengelolaan Kelas Kurikulum Merdeka, Terintegrasi Google Apps &amp; Gemini AI.
         </p>
       </div>
     </div>

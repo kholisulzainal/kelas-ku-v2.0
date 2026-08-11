@@ -831,7 +831,7 @@ export function IndonesianCalendar({ currentRole, currentUserId }: IndonesianCal
       </div>
 
       {/* Date Detail Panel */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-m3-border dark:border-slate-800/80 shadow-md flex flex-col h-full justify-between gap-6 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-m3-border dark:border-slate-800/80 shadow-md flex flex-col justify-between gap-6">
         <div>
           <div className="border-b border-m3-border dark:border-slate-800 pb-4 mb-4">
             <h4 className="text-xs font-semibold text-m3-purple dark:text-indigo-400 uppercase tracking-widest">

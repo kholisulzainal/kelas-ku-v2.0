@@ -232,7 +232,7 @@ Sertakan struktur baku Kurikulum Merdeka dalam format Markdown rapi:
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
+          <div className="flex-1 p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
             {isLoading ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3">
                 <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center animate-bounce">

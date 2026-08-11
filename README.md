@@ -1,11 +1,11 @@
-# KELAS KU (Aplikasi Manajemen Sekolah & LMS Digital)
+# 📚 KELAS KU (Aplikasi Manajemen Sekolah & LMS Digital)
 
 > **Dokumen Kontrol Alur Database, Arsitektur Sistem, dan Panduan Penggunaan & Instalasi**  
 > *Versi Rilis: 2.7.0 | Framework: React 18 + Vite + Express + Supabase PostgreSQL | Timezone: WIB (Asia/Jakarta)*
 
 ---
 
-## 1. BLUEPRINT APLIKASI & KERANGKA DASAR
+## 1. 📐 BLUEPRINT APLIKASI & KERANGKA DASAR
 
 **KELAS KU** adalah platform *School Management System* (SMS) dan *Learning Management System* (LMS) modern yang dirancang khusus untuk sekolah tingkat SD, SMP, SMA, dan SMK di Indonesia. Sistem ini mengintegrasikan manajemen akademik sekolah, penilaian kurikulum, presensi harian, modul buku digital & LKPD, pengaturan tema visual independen per user, serta pelacakan nilai tugas otomatis via Google Form Webhook secara real-time.
 
@@ -50,27 +50,27 @@
 
 ---
 
-## 2. RENCANA PENGEMBANGAN FITUR INTEGRASI AI (GEMINI AI)
+## 2. 🤖 RENCANA PENGEMBANGAN FITUR INTEGRASI AI (GEMINI AI)
 
 Aplikasi KELAS KU mengintegrasikan teknologi Google Gemini AI server-side secara bertahap untuk membantu efisiensi kerja guru dan kualitas pembelajaran:
 
-1. **Fitur 2 (Tahap 1 - Aktif): AI Tutor & Asisten Pedagogi Guru**
+1. **🤖 Fitur 2 (Tahap 1 - Aktif): AI Tutor & Asisten Pedagogi Guru**
    * Asisten AI interaktif bagi guru untuk berkonsultasi mengenai metode pengajaran, strategi penanganan kelas, solusi masalah pembelajaran siswa, pendekatan diferensiasi Kurikulum Merdeka, serta saran pembuatan asesmen.
    * Dilengkapi dengan rekomendasi prompt cepat, riwayat konsultasi, serta penyesuaian konteks mata pelajaran dan jenjang kelas.
 
-2. **Fitur 3 (Tahap 2 - Planned): AI Generator Google Form via Google Apps Script**
+2. **📝 Fitur 3 (Tahap 2 - Planned): AI Generator Google Form via Google Apps Script**
    * Guru mengunggah file soal (PDF/Doc/Teks) -> AI secara otomatis menyusun dan menghasilkan kode **Google Apps Script**.
    * Kode script siap dipasang untuk secara otomatis membuat **Google Form Kuis** lengkap dengan opsi standar (Isian Nama, NISN, tanpa kumpulkan email, tampilkan skor, batasi 1x pengerjaan, pertanyaan wajib isi, dan kunci jawaban/skor per soal).
 
-3. **Fitur 1 (Tahap 3 - Planned): AI Pembuat Perangkat Ajar Otomatis (TP, ATP, Prota, Promes, Modul Ajar)**
+3. **📚 Fitur 1 (Tahap 3 - Planned): AI Pembuat Perangkat Ajar Otomatis (TP, ATP, Prota, Promes, Modul Ajar)**
    * Pembuat perangkat ajar Kurikulum Merdeka secara otomatis.
    * Guru cukup memilih Mata Pelajaran dan memasukkan Capaian Pembelajaran (CP), lalu AI merumuskan Tujuan Pembelajaran (TP), Alur Tujuan Pembelajaran (ATP), Program Tahunan (Prota), Program Semester (Promes), hingga Modul Ajar/RPP secara komprehensif.
 
 ---
 
-## 3. PETUNJUK PENGGUNA & HAK AKSES PER ROLE
+## 3. 👥 PETUNJUK PENGGUNA & HAK AKSES PER ROLE
 
-### 1. Panduan untuk Siswa (Role: `STUDENT`)
+### 👨‍🎓 1. Panduan untuk Siswa (Role: `STUDENT`)
 * **Dasbor & Ringkasan Akademik**:
   * Menampilkan statistik kehadiran, tugas aktif, dan rekap nilai rata-rata.
 * **Mengerjakan Tugas & Kuis Google Form**:
@@ -82,7 +82,7 @@ Aplikasi KELAS KU mengintegrasikan teknologi Google Gemini AI server-side secara
 * **Pengaturan Tema Visual Mandiri**:
   * Mengatur tema tampilan (Terang/Gelap/Sistem) secara bebas tanpa mempengaruhi tampilan akun pengguna lain.
 
-### 2. Panduan untuk Guru (Role: `TEACHER`)
+### 👨‍🏫 2. Panduan untuk Guru (Role: `TEACHER`)
 * **AI Tutor Guru / Asisten Pedagogi**:
   * Berdiskusi dan berkonsultasi 24/7 dengan AI Tutor untuk memecahkan masalah pembelajaran, menyusun ide esktrakurikuler, menyusun rubrik, atau menyusun strategi siswa inklusif.
 * **Manajemen Tugas & Google Form**:
@@ -93,13 +93,13 @@ Aplikasi KELAS KU mengintegrasikan teknologi Google Gemini AI server-side secara
 * **Matrix Nilai & Asesmen**:
   * Penginputan nilai Formatif, Sumatif Lingkup Materi, dan Sumatif Akhir Semester (SAS).
 
-### 3. Panduan untuk Orang Tua (Role: `PARENT`)
+### 👨‍👩‍👧 3. Panduan untuk Orang Tua (Role: `PARENT`)
 * **Pemantauan Nilai & Perkembangan**:
   * Orang tua dapat memantau perolehan nilai kuis dan tugas harian anak secara terorganisir.
 * **Monitoring Kehadiran & Buku Digital**:
   * Rekapitulasi absensi harian dan akses bacaan Buku Digital anak di rumah.
 
-### 4. Panduan untuk Admin / Kepala Sekolah (Role: `ADMIN` / `KEPSEK`)
+### 🏫 4. Panduan untuk Admin / Kepala Sekolah (Role: `ADMIN` / `KEPSEK`)
 * **Pengaturan Profil Sekolah & Aplikasi**:
   * Kelola nama sekolah, NPSN, logo, alamat, nama Kepala Sekolah, NIP, serta pengaturan tema global/sistem.
 * **Data Master & Laporan Rapor**:
@@ -107,7 +107,7 @@ Aplikasi KELAS KU mengintegrasikan teknologi Google Gemini AI server-side secara
 
 ---
 
-## 4. ALUR KERJA INTEGRASI GOOGLE FORM & WEBHOOK
+## 4. 🔄 ALUR KERJA INTEGRASI GOOGLE FORM & WEBHOOK
 
 1. **Pembuatan Tugas**: Guru membuat tugas kuis Google Form di Dasbor Guru -> Sistem menghasilkan `ID Tugas` unik (contoh: `tugas-1785329248256`).
 2. **Pemasangan Script**: Guru menyalin kode Google Apps Script dari modal aplikasi dan menempelkannya pada Google Sheets/Form kuis.
@@ -120,7 +120,7 @@ Aplikasi KELAS KU mengintegrasikan teknologi Google Gemini AI server-side secara
 
 ---
 
-## 5. STRUKTUR DATABASE SUPABASE & MAPPING TABEL
+## 5. ⚙️ STRUKTUR DATABASE SUPABASE & MAPPING TABEL
 
 | Nama Tabel Supabase | Deskripsi & Fungsi |
 | :--- | :--- |
@@ -136,9 +136,9 @@ Aplikasi KELAS KU mengintegrasikan teknologi Google Gemini AI server-side secara
 
 ---
 
-## 6. PETUNJUK INSTALASI & DEPLOYMENT
+## 6. 💻 PETUNJUK INSTALASI & DEPLOYMENT
 
-### A. Instalasi di Lingkungan Localhost
+### 🛠️ A. Instalasi di Lingkungan Localhost
 
 **Prasyarat**: Node.js (v18.x atau v20.x), NPM.
 
@@ -171,7 +171,7 @@ Aplikasi KELAS KU mengintegrasikan teknologi Google Gemini AI server-side secara
 
 ---
 
-### B. Deployment Production (Cloud Run / VPS / Vercel)
+### 🌐 B. Deployment Production (Cloud Run / VPS / Vercel)
 
 Proyek ini dikompilasi menggunakan bundler ESBuild untuk server Express CommonJS (`dist/server.cjs`):
 
@@ -189,7 +189,7 @@ Proyek ini dikompilasi menggunakan bundler ESBuild untuk server Express CommonJS
 
 ---
 
-## 7. LISENSI & KETENTUAN HAK CIPTA
+## 7. 📜 LISENSI & KETENTUAN HAK CIPTA
 
 ```
 MIT License

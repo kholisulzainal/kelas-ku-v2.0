@@ -147,7 +147,7 @@ function MainApp() {
 
       <div className="flex flex-col lg:flex-row flex-1 relative">
         {/* Navigation Sidebar for Desktop */}
-        <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-m3-border dark:border-slate-800/50 bg-white dark:bg-slate-950 sticky top-[64px] h-[calc(100vh-64px)] overflow-y-auto overscroll-contain">
+        <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-m3-border dark:border-slate-800/50 bg-white dark:bg-slate-950 sticky top-[64px] h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar overscroll-contain">
           <Sidebar
             currentRole={currentRole}
             activeTab={activeTab}
@@ -179,7 +179,7 @@ function MainApp() {
                 className="fixed inset-y-0 left-0 z-55 w-76 max-w-[85vw] bg-white dark:bg-slate-950 shadow-2xl border-r border-m3-border dark:border-slate-800 lg:hidden flex flex-col h-full overflow-hidden"
               >
                 {/* Drawer Header inside menu */}
-                <div className="flex items-center justify-between p-5 border-b border-m3-border dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/40">
+                <div className="flex items-center justify-between p-5 border-b border-m3-border dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/40 shrink-0">
                   <span className="text-xs font-extrabold text-m3-purple dark:text-indigo-400 uppercase tracking-widest">
                     Portal Menu ({currentRole})
                   </span>
@@ -193,7 +193,7 @@ function MainApp() {
                 </div>
 
                 {/* Sidebar component inside scroll container */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
                   <Sidebar
                     currentRole={currentRole}
                     activeTab={activeTab}
@@ -209,7 +209,7 @@ function MainApp() {
         </AnimatePresence>
 
         {/* Dynamic Main Stage */}
-        <main className="flex-1 p-4 sm:p-6 overflow-x-hidden flex flex-col justify-between min-h-[calc(100vh-64px)]">
+        <main className="flex-1 p-3 sm:p-5 overflow-x-hidden flex flex-col justify-between min-h-[calc(100vh-64px)]">
           <div className="flex-1">
             <AnimatePresence mode="wait">
               <motion.div
@@ -224,7 +224,7 @@ function MainApp() {
               </motion.div>
             </AnimatePresence>
           </div>
-          <Footer />
+          {activeTab !== 'ai_tutor_guru' && <Footer />}
         </main>
       </div>
     </div>

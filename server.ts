@@ -31,7 +31,7 @@ async function generateContentWithFallback(ai: GoogleGenAI, params: {
   contents: any[];
   config: any;
 }) {
-  const modelsToTry = ['gemini-3.6-flash', 'gemini-2.5-pro'];
+  const modelsToTry = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash'];
   let lastError: any = null;
 
   for (const model of modelsToTry) {
@@ -49,7 +49,7 @@ async function generateContentWithFallback(ai: GoogleGenAI, params: {
         lastError = err;
         console.warn(`[Gemini AI] Attempt ${attempt} on model ${model} failed:`, err?.message || err);
         if (attempt < 2) {
-          await new Promise(resolve => setTimeout(resolve, 800));
+          await new Promise(resolve => setTimeout(resolve, 600));
         }
       }
     }
@@ -125,9 +125,9 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  // Middleware to parse JSON payloads
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // Middleware to parse JSON payloads with high limit for document uploads & long AI chat histories
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // CORS Middleware for incoming webhooks
   app.use((req, res, next) => {
@@ -706,30 +706,52 @@ async function startServer() {
 
       const ai = getGeminiClient();
 
-      const systemInstruction = `Anda adalah "AI Tutor Guru", asisten cerdas dan sahabat diskusi bagi para guru di Indonesia.
+      const systemInstruction = `Anda adalah "AI Tutor Guru", pakar pedagogi pendidikan, ahli Kurikulum Merdeka, dan kawan diskusi cerdas bagi para guru di Indonesia.
 
-Peran & Sikap Anda:
-1. Ramah, empatik, praktis, dan profesional.
-2. Memberikan solusi konkrit, langkah demi langkah, serta ide-ide kreatif untuk mengajar, mengatasi kendala kelas, pembelajaran berdiferensiasi Kurikulum Merdeka, ice breaking, serta asesmen.
-3. Menyampaikan jawaban dalam Bahasa Indonesia yang lugas, mudah dipahami, dengan format Markdown yang rapi (bold heading, bullet points, langkah terstruktur).`;
+PRINSIP UTAMA KUALITAS JAWABAN:
+1. AKURASI & PRESISI TINGGI: Berikan jawaban yang 100% benar, faktual, tepat, dan terverifikasi. Apabila pertanyaan mengandung matematika, rumus sains/fisika/kimia, tata bahasa, atau regulasi Kurikulum Merdeka, hitung dan verifikasi secara cermat setiap langkah agar tidak ada kesalahan konsep maupun angka.
+2. PENALARAN LOGIS & LOGIKA PEDAGOGIK: Analisis pertanyaan guru secara mendalam sebelum menjawab. Sampaikan penjelasan secara sistematis, terstruktur, dan mudah dipahami.
+3. KURIKULUM MERDEKA & METODE MENGAJAR: Kuasai konsep Pembelajaran Berdiferensiasi, Asesmen Formatif & Sumatif, Modul Ajar, CP/TP/ATP, P5 (Profil Pelajar Pancasila), Ice Breaking, serta Strategi Pengelolaan Kelas.
+4. FORMAT TAMPILAN (MARKDOWN): Gunakan format Markdown yang sangat rapi dengan judul bold, poin-poin terurut, penekanan teks (bold), dan langkah operasional yang siap dipraktikkan guru di sekolah.
+5. SIKAP: Ramah, empatik, suportif, profesional, serta solutif.`;
 
       let contentsPayload: any[] = [];
       if (Array.isArray(history) && history.length > 0) {
         for (const item of history) {
-          if (item.role === 'user' && item.text) {
-            contentsPayload.push({ role: 'user', parts: [{ text: item.text }] });
-          } else if (item.role === 'model' && item.text) {
-            contentsPayload.push({ role: 'model', parts: [{ text: item.text }] });
+          if (!item || !item.text || typeof item.text !== 'string' || !item.text.trim()) continue;
+          const role = item.role === 'model' ? 'model' : 'user';
+
+          // Avoid two consecutive messages with the same role
+          if (contentsPayload.length > 0 && contentsPayload[contentsPayload.length - 1].role === role) {
+            contentsPayload[contentsPayload.length - 1].parts[0].text += `\n\n${item.text.trim()}`;
+          } else {
+            contentsPayload.push({ role, parts: [{ text: item.text.trim() }] });
           }
         }
       }
-      contentsPayload.push({ role: 'user', parts: [{ text: prompt.trim() }] });
+
+      // Ensure history doesn't start with 'model' if user hasn't sent any prompt yet
+      while (contentsPayload.length > 0 && contentsPayload[0].role === 'model') {
+        contentsPayload.shift();
+      }
+
+      // Append current prompt safely
+      const trimmedPrompt = prompt.trim();
+      if (contentsPayload.length > 0 && contentsPayload[contentsPayload.length - 1].role === 'user') {
+        if (contentsPayload[contentsPayload.length - 1].parts[0].text === trimmedPrompt) {
+          // Already present as last user turn, no need to duplicate
+        } else {
+          contentsPayload[contentsPayload.length - 1].parts[0].text += `\n\n${trimmedPrompt}`;
+        }
+      } else {
+        contentsPayload.push({ role: 'user', parts: [{ text: trimmedPrompt }] });
+      }
 
       const response = await generateContentWithFallback(ai, {
         contents: contentsPayload,
         config: {
           systemInstruction,
-          temperature: 0.7,
+          temperature: 0.3, // Lower temperature for high precision & accuracy
         }
       });
 
