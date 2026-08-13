@@ -773,6 +773,49 @@ PRINSIP UTAMA KUALITAS JAWABAN:
 
   app.post('/api/ai/tutor', handleAiTutorGuru);
 
+  const handleAiChatAsisten = async (req: Request, res: Response) => {
+    try {
+      const { message, context } = req.body || {};
+      const query = message || '';
+
+      if (!query.trim()) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Pesan tidak boleh kosong.'
+        });
+      }
+
+      const ai = getGeminiClient();
+      const systemInstruction = `Anda adalah "EdAdmin AI Assistant", pakar pedagogi Kurikulum Merdeka, penyusun soal HOTS, dan asisten cerdas bagi Bapak/Ibu Guru ${context?.guru || ''} di ${context?.sekolah || 'sekolah'}.\n\nPRINSIP UTAMA JAWABAN:\n1. Tepat, akurat, dan solutif untuk administrasi serta strategi pembelajaran guru.\n2. Gunakan format Markdown yang sangat rapi.\n3. Ramah, profesional, dan empatik.`;
+
+      const response = await generateContentWithFallback(ai, {
+        contents: [{ role: 'user', parts: [{ text: query.trim() }] }],
+        config: {
+          systemInstruction,
+          temperature: 0.3
+        }
+      });
+
+      const replyText = response.text || 'Maaf, Asisten AI belum dapat merumuskan jawaban saat ini.';
+
+      return res.status(200).json({
+        status: 'success',
+        success: true,
+        reply: replyText,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error('[AI Chat Asisten Error]:', err);
+      return res.status(500).json({
+        status: 'error',
+        success: false,
+        message: 'Gagal terhubung ke Asisten AI: ' + (err?.message || 'Terjadi kesalahan internal.')
+      });
+    }
+  };
+
+  app.post('/api/ai/chat-asisten', handleAiChatAsisten);
+
   // Health check endpoint
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', service: 'Kelas Ku Webhook Server', timestamp: new Date().toISOString() });

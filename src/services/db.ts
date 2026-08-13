@@ -18,6 +18,7 @@ import {
 } from '../types';
 import { syncRowToSupabase, deleteRowFromSupabase, saveOperatorCredentialsToSupabase } from './supabase';
 import { uploadFileToSupabaseStorage } from './storage.service';
+import { generateStandardMapelCode, extractGradeNumber } from '../utils/mapelUtils';
 import { getWibDateString, getWibIsoString } from '../utils/dateUtils';
 
 // Empty default data structures (No hardcoded dummy/sample records)
@@ -437,8 +438,31 @@ export const db = {
   mataPelajaran: {
     getAll: (): MataPelajaran[] => {
       const data = localStorage.getItem('mata_pelajaran');
-      const list: MataPelajaran[] = data ? JSON.parse(data) : [];
+      let list: MataPelajaran[] = data ? JSON.parse(data) : [];
       if (list.length === 0) return defaultMataPelajaran;
+
+      // Auto-sanitize mismatched kodeMapel vs kelas in local database
+      let updated = false;
+      list = list.map(m => {
+        if (!m.kodeMapel || m.kodeMapel.startsWith('MP-')) {
+          const stdCode = generateStandardMapelCode(m.namaMapel, m.kelas);
+          updated = true;
+          return { ...m, kodeMapel: stdCode };
+        }
+        const codeGrade = extractGradeNumber(m.kodeMapel);
+        const kelasGrade = extractGradeNumber(m.kelas);
+        if (codeGrade !== null && kelasGrade !== null && codeGrade !== kelasGrade) {
+          const stdCode = generateStandardMapelCode(m.namaMapel, m.kelas);
+          updated = true;
+          return { ...m, kodeMapel: stdCode };
+        }
+        return m;
+      });
+
+      if (updated) {
+        localStorage.setItem('mata_pelajaran', JSON.stringify(list));
+      }
+
       return list.sort((a, b) => a.namaMapel.localeCompare(b.namaMapel));
     },
     save: (items: MataPelajaran[]) => {

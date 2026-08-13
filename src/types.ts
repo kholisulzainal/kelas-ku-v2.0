@@ -207,3 +207,16 @@ export interface BukuDigital {
   uploadedBy?: string;
   createdAt: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+}
+
+export interface Pengaturan {
+  Nama_Guru?: string;
+  Nama_Sekolah?: string;
+  [key: string]: any;
+}

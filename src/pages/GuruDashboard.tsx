@@ -42,17 +42,20 @@ import {
   ChevronDown,
   ChevronUp,
   Code,
-  RefreshCw
+  RefreshCw,
+  Zap
 } from 'lucide-react';
 import { GoogleAppsScriptModal } from '../components/GoogleAppsScriptModal';
 import { AplikasiSetting } from '../components/AplikasiSetting';
 import { BukuDigitalView } from '../components/BukuDigitalView';
 import { AiTutorGuruView } from '../components/AiTutorGuruView';
 import { AiGeneratorSoalView } from '../components/AiGeneratorSoalView';
-import { AiPerangkatAjarView } from '../components/AiPerangkatAjarView';
+import { AsistenGuruAIView } from '../components/AsistenGuruAIView';
+import { Pengaturan } from '../types';
 import { AsesmenMatrixTable } from '../components/AsesmenMatrixTable';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { db } from '../services/db';
+import { generateStandardMapelCode, extractGradeNumber } from '../utils/mapelUtils';
 import { syncRowToSupabase } from '../services/supabase';
 import { exportToCSV, exportToExcel } from '../utils/export';
 import { sendNewAssignmentEmailAlerts } from '../services/googleWorkspace';
@@ -182,7 +185,7 @@ export function GuruDashboard({ activeTab }: GuruDashboardProps) {
   const [editingItem, setEditingItem] = useState<any | null>(null);
 
   // Initialize React Hook Forms
-  const { register, handleSubmit, reset, setValue, watch } = useForm();
+  const { register, handleSubmit, reset, setValue, getValues, watch } = useForm();
 
   // New States for credentials edit & login card export
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
@@ -1544,9 +1547,22 @@ export function GuruDashboard({ activeTab }: GuruDashboardProps) {
       ? loggedInGuru.kelasWali 
       : (activeClassFilter !== 'Semua' ? activeClassFilter : (classList[0] || 'Kelas 4'));
     const classToAssign = data.kelas || defaultKelasMapel;
+
+    // Enforce standard mapel code rules to prevent class leaks (e.g. bin5 for Kls 5, bin6 for Kls 6)
+    let validatedKodeMapel = (data.kodeMapel || '').trim();
+    if (!validatedKodeMapel || validatedKodeMapel.startsWith('MP-')) {
+      validatedKodeMapel = generateStandardMapelCode(data.namaMapel, classToAssign);
+    } else {
+      const codeGrade = extractGradeNumber(validatedKodeMapel);
+      const targetGrade = extractGradeNumber(classToAssign);
+      if (codeGrade !== null && targetGrade !== null && codeGrade !== targetGrade) {
+        validatedKodeMapel = generateStandardMapelCode(data.namaMapel, classToAssign);
+      }
+    }
+
     const item: MataPelajaran = {
       id: editingItem?.id || `mapel-${Date.now()}`,
-      kodeMapel: data.kodeMapel,
+      kodeMapel: validatedKodeMapel,
       namaMapel: data.namaMapel,
       kkm: Number(data.kkm) || 75,
       guruPengampuId: data.guruPengampuId || loggedInUserId || gurus[0]?.id || '',
@@ -2645,10 +2661,20 @@ export function GuruDashboard({ activeTab }: GuruDashboardProps) {
           const namaMapel = String(findVal(['namamapel', 'mapel', 'matapelajaran', 'nama']) || '').trim();
           if (!namaMapel) return;
 
-          const kodeMapel = String(findVal(['kodemapel', 'kode']) || `MP-${Date.now().toString().slice(-4)}`).trim();
+          let kodeMapel = String(findVal(['kodemapel', 'kode']) || '').trim();
           const kkm = parseInt(String(findVal(['kkm', 'kkmstandar', 'kriteria']) || '75'), 10) || 75;
           const kelompok = String(findVal(['kelompok', 'kategori']) || 'Mata Pelajaran Utama').trim();
           const kelas = String(findVal(['kelas', 'targetkelas']) || (activeClassFilter !== 'Semua' ? activeClassFilter : 'Kelas 4')).trim();
+
+          if (!kodeMapel || kodeMapel.startsWith('MP-')) {
+            kodeMapel = generateStandardMapelCode(namaMapel, kelas);
+          } else {
+            const codeGrade = extractGradeNumber(kodeMapel);
+            const targetGrade = extractGradeNumber(kelas);
+            if (codeGrade !== null && targetGrade !== null && codeGrade !== targetGrade) {
+              kodeMapel = generateStandardMapelCode(namaMapel, kelas);
+            }
+          }
 
           const existing = db.mataPelajaran.getAll().find(m =>
             m.namaMapel.toLowerCase() === namaMapel.toLowerCase() && m.kelas === kelas
@@ -5929,19 +5955,17 @@ export function GuruDashboard({ activeTab }: GuruDashboardProps) {
         </div>
       )}
 
-      {/* AI TUTOR & ASISTEN PEDAGOGI GURU */}
-      {activeTab === 'ai_tutor' && (
-        <AiTutorGuruView currentUserId={loggedInUserId} />
+      {/* 1. ASISTEN GURU AI */}
+      {(activeTab === 'asisten_guru_ai' || activeTab === 'ai_tutor') && (
+        <AsistenGuruAIView config={{
+          Nama_Guru: loggedInGuru ? `${loggedInGuru.namaGuru}${loggedInGuru.gelar ? ', ' + loggedInGuru.gelar : ''}` : 'Guru',
+          Nama_Sekolah: sekolah?.namaSekolah || 'Sekolah Dasar'
+        }} />
       )}
 
-      {/* AI GENERATOR SOAL */}
+      {/* 2. AI GENERATOR SOAL */}
       {activeTab === 'ai_generator_soal' && (
         <AiGeneratorSoalView />
-      )}
-
-      {/* AI PERANGKAT AJAR */}
-      {activeTab === 'ai_perangkat_ajar' && (
-        <AiPerangkatAjarView />
       )}
 
       {/* 10. BUKU DIGITAL & MODUL */}
@@ -6173,8 +6197,26 @@ export function GuruDashboard({ activeTab }: GuruDashboardProps) {
             {activeTab === 'mata_pelajaran' && (
               <form onSubmit={handleSubmit(onSubmitMapel)} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Kode Mapel</label>
-                  <input type="text" disabled={!isCurrentGuruWaliKelas} {...register('kodeMapel', { required: true })} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm disabled:opacity-75 disabled:cursor-not-allowed font-medium" />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-500">Kode Mapel Khusus Per Kelas</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentName = getValues('namaMapel') || 'Bahasa Indonesia';
+                        const currentKelas = getValues('kelas') || 'Kelas 6';
+                        const stdCode = generateStandardMapelCode(currentName, currentKelas);
+                        setValue('kodeMapel', stdCode);
+                      }}
+                      className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Zap className="w-3 h-3 text-amber-500" />
+                      <span>Buat Kode Standar (misal: bin6)</span>
+                    </button>
+                  </div>
+                  <input type="text" placeholder="Contoh: bin5, bin6, mat5, mat6" disabled={!isCurrentGuruWaliKelas} {...register('kodeMapel', { required: true })} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm disabled:opacity-75 disabled:cursor-not-allowed font-medium" />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Aturan Database Operator: <span className="font-bold text-indigo-600 dark:text-indigo-400">bin5</span> untuk B.Indo Kelas 5, <span className="font-bold text-indigo-600 dark:text-indigo-400">bin6</span> untuk Kelas 6, <span className="font-bold text-indigo-600 dark:text-indigo-400">mat6</span> untuk MTK Kelas 6.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Nama Mapel</label>
