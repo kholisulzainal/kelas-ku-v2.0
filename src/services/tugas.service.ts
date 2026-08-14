@@ -438,7 +438,7 @@ export const tugasService = {
           } catch (e) {}
         }
 
-        // Background Poller if score is still null
+        // Background Poller if score is still null (extended resilience for Google Webhook)
         if (sub.score == null) {
           let attempts = 0;
           const pollTimer = setInterval(async () => {
@@ -449,12 +449,13 @@ export const tugasService = {
                 clearInterval(pollTimer);
                 window.dispatchEvent(new Event('penilaians-updated'));
                 window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'tugas_siswa' } }));
+                window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'penilaian' } }));
               }
             } catch (e) {}
-            if (attempts >= 4) {
+            if (attempts >= 8) {
               clearInterval(pollTimer);
             }
-          }, 4000);
+          }, 3500);
         }
       } catch (err) {
         console.warn('[selesaiTugas async bg sync notice]:', err);

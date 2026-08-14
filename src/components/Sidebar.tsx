@@ -52,11 +52,7 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
       'kalender_akademik'
     ].includes(activeTab);
 
-    const isAiActive = [
-      'asisten_guru_ai',
-      'ai_tutor',
-      'ai_generator_soal'
-    ].includes(activeTab);
+    const isAiActive = ['ai_tutor', 'ai_generator_soal', 'ai_perangkat_ajar'].includes(activeTab);
 
     return (
       <div className="space-y-1">
@@ -255,18 +251,18 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
 
           {openSubMenus.ai_guru && (
             <div className="ml-3 pl-3 my-1 border-l-2 border-indigo-200 dark:border-indigo-900/60 space-y-0.5">
-              {/* 1. Asisten Guru AI */}
+              {/* AI Tutor Guru (NO EMOJI) */}
               <button
-                id="sidebar_tab_asisten_guru_ai"
-                onClick={() => setActiveTab('asisten_guru_ai')}
+                id="sidebar_tab_ai_tutor"
+                onClick={() => setActiveTab('ai_tutor')}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                  activeTab === 'asisten_guru_ai' || activeTab === 'ai_tutor'
+                  activeTab === 'ai_tutor'
                     ? 'bg-indigo-600 text-white font-bold shadow-xs'
                     : 'text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-slate-800'
                 }`}
               >
                 <Bot className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
-                <span className="truncate">Asisten Guru AI</span>
+                <span className="truncate">AI Tutor Guru</span>
               </button>
 
               {/* AI Generator Soal */}
@@ -281,6 +277,20 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-amber-500" />
                 <span className="truncate">AI Generator Soal</span>
+              </button>
+
+              {/* AI Perangkat Ajar */}
+              <button
+                id="sidebar_tab_ai_perangkat_ajar"
+                onClick={() => setActiveTab('ai_perangkat_ajar')}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                  activeTab === 'ai_perangkat_ajar'
+                    ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                <span className="truncate">AI Perangkat Ajar</span>
               </button>
             </div>
           )}

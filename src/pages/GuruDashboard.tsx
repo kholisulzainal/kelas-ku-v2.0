@@ -50,8 +50,7 @@ import { AplikasiSetting } from '../components/AplikasiSetting';
 import { BukuDigitalView } from '../components/BukuDigitalView';
 import { AiTutorGuruView } from '../components/AiTutorGuruView';
 import { AiGeneratorSoalView } from '../components/AiGeneratorSoalView';
-import { AsistenGuruAIView } from '../components/AsistenGuruAIView';
-import { Pengaturan } from '../types';
+import { AiPerangkatAjarView } from '../components/AiPerangkatAjarView';
 import { AsesmenMatrixTable } from '../components/AsesmenMatrixTable';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { db } from '../services/db';
@@ -5955,17 +5954,19 @@ export function GuruDashboard({ activeTab }: GuruDashboardProps) {
         </div>
       )}
 
-      {/* 1. ASISTEN GURU AI */}
-      {(activeTab === 'asisten_guru_ai' || activeTab === 'ai_tutor') && (
-        <AsistenGuruAIView config={{
-          Nama_Guru: loggedInGuru ? `${loggedInGuru.namaGuru}${loggedInGuru.gelar ? ', ' + loggedInGuru.gelar : ''}` : 'Guru',
-          Nama_Sekolah: sekolah?.namaSekolah || 'Sekolah Dasar'
-        }} />
+      {/* AI TUTOR & ASISTEN PEDAGOGI GURU */}
+      {activeTab === 'ai_tutor' && (
+        <AiTutorGuruView currentUserId={loggedInUserId} />
       )}
 
-      {/* 2. AI GENERATOR SOAL */}
+      {/* AI GENERATOR SOAL */}
       {activeTab === 'ai_generator_soal' && (
         <AiGeneratorSoalView />
+      )}
+
+      {/* AI PERANGKAT AJAR */}
+      {activeTab === 'ai_perangkat_ajar' && (
+        <AiPerangkatAjarView />
       )}
 
       {/* 10. BUKU DIGITAL & MODUL */}

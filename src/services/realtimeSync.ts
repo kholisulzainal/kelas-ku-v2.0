@@ -69,10 +69,10 @@ export function startRealtimeSync() {
               currentArray.push(camelRow);
             }
           } else if (eventType === 'DELETE') {
-            const oldId = oldRow?.id || oldRow?.NISN; // Handle primary keys appropriately
+            const oldId = oldRow?.id || oldRow?.nisn || oldRow?.NISN || oldRow?.nip || oldRow?.NIP; // Handle primary keys appropriately
             if (oldId) {
               currentArray = currentArray.filter((item: any) => {
-                const itemId = item.id || item.nisn;
+                const itemId = item.id || item.nisn || item.NISN || item.nip || item.NIP;
                 return String(itemId) !== String(oldId);
               });
             }

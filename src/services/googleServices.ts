@@ -541,7 +541,10 @@ export async function syncClassDataFromGoogleSheet(
       if (isRowEmpty) continue;
 
       try {
-        const rawNisn = nisnIdx !== -1 ? row[nisnIdx]?.toString().trim() : '';
+        let rawNisn = nisnIdx !== -1 ? row[nisnIdx]?.toString().trim() : '';
+        if (rawNisn && rawNisn.endsWith('.0')) {
+          rawNisn = rawNisn.replace(/\.0$/, '');
+        }
         const rawNama = namaIdx !== -1 ? row[namaIdx]?.toString().trim() : '';
         
         // Skip rows without at least a name
@@ -552,7 +555,10 @@ export async function syncClassDataFromGoogleSheet(
 
         // Generate NISN if missing to ensure DB constraints are satisfied
         const finalNisn = rawNisn || `99${Math.floor(10000000 + Math.random() * 90000000)}`;
-        const rawNis = nisIdx !== -1 ? row[nisIdx]?.toString().trim() : '';
+        let rawNis = nisIdx !== -1 ? row[nisIdx]?.toString().trim() : '';
+        if (rawNis && rawNis.endsWith('.0')) {
+          rawNis = rawNis.replace(/\.0$/, '');
+        }
         const finalNis = rawNis || `2324040${Math.floor(10 + Math.random() * 89)}`;
 
         // Process Gender (convert to 'L' or 'P')
