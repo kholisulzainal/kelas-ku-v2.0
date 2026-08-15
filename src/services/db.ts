@@ -17,6 +17,7 @@ import {
   UserRole
 } from '../types';
 import { syncRowToSupabase, deleteRowFromSupabase, saveOperatorCredentialsToSupabase } from './supabase';
+import { syncRowToFirebase, deleteRowFromFirebase } from './firebase';
 import { uploadFileToSupabaseStorage } from './storage.service';
 import { generateStandardMapelCode, extractGradeNumber } from '../utils/mapelUtils';
 import { getWibDateString, getWibIsoString } from '../utils/dateUtils';

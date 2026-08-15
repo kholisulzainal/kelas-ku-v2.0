@@ -1136,7 +1136,12 @@ export function transformKeysToCamelCase(obj: any): any {
 }
 
 // Download/pull all tables from Supabase database to synchronize local application storage
-export async function pullAllFromSupabase(): Promise<{ success: boolean; error?: string }> {
+export async function pullAllFromSupabase(options?: { overwriteIfEmpty?: boolean }): Promise<{
+  success: boolean;
+  pulledCount?: number;
+  details?: Record<string, number>;
+  error?: string;
+}> {
   const client = getSupabaseClient();
   if (!client) {
     return { success: false, error: 'Koneksi Supabase tidak aktif. Silakan periksa URL dan API Key Anda.' };
@@ -1160,69 +1165,121 @@ export async function pullAllFromSupabase(): Promise<{ success: boolean; error?:
     { dbName: 'operator_credentials', localName: 'operator_credentials', isArray: true }
   ];
 
+  let totalPulledRecords = 0;
+  const details: Record<string, number> = {};
+  const errors: string[] = [];
+  let successfulTables = 0;
+
   try {
     for (const table of tablesToPull) {
-      console.log(`Pulling table "${table.dbName}" from Supabase...`);
-      const { data, error } = await client.from(table.dbName).select('*');
-      if (error) {
-        console.warn(`Error pulling ${table.dbName}:`, error);
-        continue;
-      }
-
-      if (data) {
-        // Strip out 'created_at' if any
-        const cleanedData = Array.isArray(data)
-          ? data.map(({ created_at, ...rest }) => rest)
-          : data;
-
-        const transformed = transformKeysToCamelCase(cleanedData);
-
-        if (table.isArray) {
-          if (Array.isArray(transformed)) {
-            localStorage.setItem(table.localName, JSON.stringify(transformed));
-          } else {
-            localStorage.setItem(table.localName, '[]');
-          }
-        } else {
-          if (Array.isArray(transformed) && transformed.length > 0) {
-            localStorage.setItem(table.localName, JSON.stringify(transformed[0]));
-          } else if (transformed && typeof transformed === 'object' && Object.keys(transformed).length > 0) {
-            localStorage.setItem(table.localName, JSON.stringify(transformed));
-          }
+      try {
+        const { data, error } = await client.from(table.dbName).select('*');
+        if (error) {
+          console.warn(`[Supabase Pull] Table "${table.dbName}" notice:`, error.message || error);
+          // Don't treat missing non-critical table (e.g. PGRST205) as fatal to all
+          errors.push(`${table.dbName}: ${error.message || 'Gagal query'}`);
+          continue;
         }
 
-        // Update delta sync hashes for the pulled data to prevent redundant future pushes
-        try {
-          const rawHashes = localStorage.getItem('_supabase_sync_hashes');
-          const syncHashes = rawHashes ? JSON.parse(rawHashes) : {};
-          const items = Array.isArray(cleanedData) ? cleanedData : [cleanedData];
-          
-          for (const item of items) {
-            if (!item) continue;
-            const validCols = VALID_COLUMNS[table.dbName];
-            let filteredItem: any = {};
-            if (validCols) {
-              for (const col of validCols) {
-                if (item[col] !== undefined) {
-                  filteredItem[col] = item[col];
-                }
-              }
+        successfulTables++;
+
+        if (data !== null && data !== undefined) {
+          // Strip out metadata fields like 'created_at' if any
+          const cleanedData = Array.isArray(data)
+            ? data.map(({ created_at, ...rest }) => rest)
+            : data;
+
+          const transformed = transformKeysToCamelCase(cleanedData);
+
+          if (table.isArray) {
+            const count = Array.isArray(transformed) ? transformed.length : 0;
+            details[table.dbName] = count;
+            totalPulledRecords += count;
+
+            if (Array.isArray(transformed) && transformed.length > 0) {
+              localStorage.setItem(table.localName, JSON.stringify(transformed));
+            } else if (options?.overwriteIfEmpty) {
+              localStorage.setItem(table.localName, '[]');
             } else {
-              filteredItem = item;
+              // If remote table is empty and overwriteIfEmpty is false, check if local already has data
+              const existing = localStorage.getItem(table.localName);
+              if (!existing || existing === '[]') {
+                localStorage.setItem(table.localName, '[]');
+              } else {
+                console.log(`[Supabase Pull] Preserved existing local data for "${table.localName}" because remote table is empty.`);
+              }
             }
-            const rowKey = `${table.dbName}:${filteredItem.id || 'singleton'}`;
-            syncHashes[rowKey] = JSON.stringify(filteredItem);
+          } else {
+            // Single object table (e.g. profil_sekolah, app_settings)
+            if (Array.isArray(transformed) && transformed.length > 0) {
+              details[table.dbName] = 1;
+              totalPulledRecords += 1;
+              localStorage.setItem(table.localName, JSON.stringify(transformed[0]));
+            } else if (transformed && typeof transformed === 'object' && Object.keys(transformed).length > 0) {
+              details[table.dbName] = 1;
+              totalPulledRecords += 1;
+              localStorage.setItem(table.localName, JSON.stringify(transformed));
+            } else {
+              details[table.dbName] = 0;
+            }
           }
-          localStorage.setItem('_supabase_sync_hashes', JSON.stringify(syncHashes));
-        } catch (e) {
-          console.warn(`Error updating delta sync hashes for pulled table: ${table.dbName}`, e);
+
+          // Update delta sync hashes for the pulled data to prevent redundant future pushes
+          try {
+            const rawHashes = localStorage.getItem('_supabase_sync_hashes');
+            const syncHashes = rawHashes ? JSON.parse(rawHashes) : {};
+            const items = Array.isArray(cleanedData) ? cleanedData : [cleanedData];
+            
+            for (const item of items) {
+              if (!item) continue;
+              const validCols = VALID_COLUMNS[table.dbName];
+              let filteredItem: any = {};
+              if (validCols) {
+                for (const col of validCols) {
+                  if (item[col] !== undefined) {
+                    filteredItem[col] = item[col];
+                  }
+                }
+              } else {
+                filteredItem = item;
+              }
+              const rowKey = `${table.dbName}:${filteredItem.id || 'singleton'}`;
+              syncHashes[rowKey] = JSON.stringify(filteredItem);
+            }
+            localStorage.setItem('_supabase_sync_hashes', JSON.stringify(syncHashes));
+          } catch (e) {
+            console.warn(`Error updating delta sync hashes for pulled table: ${table.dbName}`, e);
+          }
         }
+      } catch (tableErr: any) {
+        console.warn(`[Supabase Pull] Exception pulling table ${table.dbName}:`, tableErr);
+        errors.push(`${table.dbName}: ${tableErr?.message || 'Error'}`);
       }
     }
-    return { success: true };
+
+    // Refresh memory cache so internal references stay updated
+    try {
+      await refreshDbCache(true);
+    } catch {
+      // Non-blocking
+    }
+
+    if (successfulTables === 0 && errors.length > 0) {
+      return {
+        success: false,
+        error: `Gagal menarik data: ${errors[0] || 'Koneksi ke Supabase terputus.'}`,
+        details
+      };
+    }
+
+    return {
+      success: true,
+      pulledCount: totalPulledRecords,
+      details
+    };
   } catch (e: any) {
     console.error('Exception during pull from Supabase:', e);
-    return { success: false, error: e?.message || 'Exception occurred during pull' };
+    return { success: false, error: e?.message || 'Terjadi kesalahan saat mengunduh data dari Supabase.' };
   }
 }
 

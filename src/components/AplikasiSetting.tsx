@@ -25,12 +25,15 @@ import {
   Palette,
   Sun,
   Moon,
-  Laptop
+  Laptop,
+  Flame
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../services/db';
 import { useTheme } from './ThemeContext';
 import { pullAllFromSupabase, getSupabaseConfig, syncRowToSupabase } from '../services/supabase';
+import { isFirebaseConfigured, getStoredFirebaseConfig } from '../services/firebase';
+import { FirebaseSettingsTab } from './FirebaseSettingsTab';
 import { exportToExcel } from '../utils/export';
 import { Guru, Siswa, Absensi, ProfilSekolah } from '../types';
 
@@ -112,11 +115,13 @@ export function AplikasiSetting() {
   const [opSuccessMsg, setOpSuccessMsg] = useState('');
   const [opErrorMsg, setOpErrorMsg] = useState('');
 
-  // 4. Supabase & Backup State
+  // 4. Supabase & Firebase State
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [showFirebaseModal, setShowFirebaseModal] = useState(false);
   const supabaseConfig = getSupabaseConfig();
   const isSupabaseConfigured = Boolean(supabaseConfig.url && supabaseConfig.anonKey);
+  const hasFirebaseConfig = isFirebaseConfigured();
 
   // 5. Modal Import Result
   const [showImportResultModal, setShowImportResultModal] = useState(false);
@@ -1175,6 +1180,11 @@ export function AplikasiSetting() {
           <span className="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400 rounded-full">
             Infrastruktur #5
           </span>
+        </div>
+
+        {/* Firebase Cloud Section - Rendered directly */}
+        <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 rounded-2xl border border-amber-200 dark:border-amber-900/40 space-y-4">
+          <FirebaseSettingsTab />
         </div>
 
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">

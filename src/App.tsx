@@ -35,12 +35,14 @@ function MainApp() {
       pullAllFromSupabase()
         .then((res) => {
           if (res.success) {
-            console.log('[Auto Sync] Pulled all tables from Supabase successfully on load.');
+            console.log(`[Auto Sync] Pulled data from Supabase successfully (${res.pulledCount ?? 0} records).`);
             window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: '' } }));
+          } else {
+            console.warn('[Auto Sync] Notice during initial pull:', res.error);
           }
         })
         .catch((err) => {
-          console.error('[Auto Sync] Error during auto-pull on load:', err);
+          console.warn('[Auto Sync] Non-blocking network exception during initial pull:', err?.message || err);
         });
 
       // 2. Start real-time Postgres subscription channel
