@@ -109,12 +109,12 @@ function getAdminSupabaseClient(customUrl?: string, customKey?: string) {
   const supabaseUrl = customUrl || 
                       process.env.VITE_SUPABASE_URL || 
                       process.env.NEXT_PUBLIC_SUPABASE_URL || 
-                      'https://bznfilozrqhmnjvptqic.supabase.co';
+                      'https://placeholder.supabase.co';
   const serviceKey = customKey || 
                      process.env.SUPABASE_SERVICE_ROLE_KEY || 
                      process.env.VITE_SUPABASE_ANON_KEY || 
                      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-                     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6bmZpbG96cnFobW5qdnB0cWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMDc4ODAsImV4cCI6MjA5OTg4Mzg4MH0.utqOLbyIp4UJN2zUKwJpoPEw7EJglUxz-iUTD-Cghds';
+                     'placeholder-service-key';
   
   return createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false }
