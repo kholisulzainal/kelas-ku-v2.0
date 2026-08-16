@@ -5,7 +5,7 @@
 
 ---
 
-## 1. 📐 GAMBARAN UMUM & ARSITEKTUR SISTEM
+## 1. GAMBARAN UMUM & ARSITEKTUR SISTEM
 
 **KELAS KU** adalah aplikasi *School Management System* (SMS) dan *Learning Management System* (LMS) modern untuk institusi pendidikan (SD, SMP, SMA/SMK) di Indonesia. Aplikasi ini mendukung Kurikulum Merdeka dan Kurikulum 2013 dengan fitur manajemen data sekolah, penilaian asesmen (Formatif, Sumatif, SAS), presensi digital, perpustakaan buku digital & LKPD, integrasi AI Google Gemini, serta sinkronisasi multi-cloud (Firebase Cloud Firestore & Supabase PostgreSQL).
 
@@ -42,7 +42,7 @@
 
 ---
 
-## 2. 🗂️ STRUKTUR DASAR DIREKTORI PROYEK
+## 2. STRUKTUR DASAR DIREKTORI PROYEK
 
 Struktur direktori aplikasi disusun secara modular untuk memisahkan antarmuka (UI), logika bisnis (Services), perutean peran (Pages), dan backend Express:
 
@@ -114,7 +114,7 @@ kelas-ku/
 
 ---
 
-## 3. 👥 HAK AKSES & PERAN PENGGUNA (ROLE MATRIX)
+## 3. HAK AKSES & PERAN PENGGUNA (ROLE MATRIX)
 
 | Role | Portal / Page | Fitur Utama |
 | :--- | :--- | :--- |
@@ -125,7 +125,7 @@ kelas-ku/
 
 ---
 
-## 4. 🔄 ALUR MANAJEMEN DATA & SINKRONISASI CLOUD
+## 4. ALUR MANAJEMEN DATA & SINKRONISASI CLOUD
 
 Aplikasi menerapkan arsitektur **Offline-First dengan Multi-Cloud Sync**:
 
@@ -140,7 +140,7 @@ Aplikasi menerapkan arsitektur **Offline-First dengan Multi-Cloud Sync**:
 
 ---
 
-## 5. 🎨 SISTEM TEMA & KUSTOMISASI TAMPILAN
+## 5. SISTEM TEMA & KUSTOMISASI TAMPILAN
 
 * **Pilihan Mode**:
   * ☀️ **Terang (Light)**: Latar bersih dan kontras tinggi untuk kenyamanan siang hari.
@@ -150,7 +150,7 @@ Aplikasi menerapkan arsitektur **Offline-First dengan Multi-Cloud Sync**:
 
 ---
 
-## 6. 🚀 PANDUAN MENJALANKAN APLIKASI
+## 6. PANDUAN MENJALANKAN APLIKASI
 
 ### Mode Pengembangan (Development)
 ```bash
