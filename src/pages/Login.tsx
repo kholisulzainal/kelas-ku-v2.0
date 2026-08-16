@@ -23,6 +23,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetStatus, setResetStatus] = useState<{ success: boolean; message: string } | null>(null);
 
+  const [school, setSchool] = useState<any>(db.profilSekolah.get());
+
   React.useEffect(() => {
     // Otomatis bersihkan cache browser saat masuk halaman login
     if (typeof window !== 'undefined' && 'caches' in window) {
@@ -38,6 +40,12 @@ export function Login({ onLoginSuccess }: LoginProps) {
       setShowAutoLogoutMessage(true);
       localStorage.removeItem('auto_logged_out_flag');
     }
+
+    const handleDataUpdate = () => {
+      setSchool(db.profilSekolah.get());
+    };
+    window.addEventListener('supabase-data-updated', handleDataUpdate);
+    return () => window.removeEventListener('supabase-data-updated', handleDataUpdate);
   }, []);
 
   const handleSendResetLink = async (e: React.FormEvent) => {
@@ -85,8 +93,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
       setResetLoading(false);
     }
   };
-
-  const school = db.profilSekolah.get();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

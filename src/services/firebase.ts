@@ -563,7 +563,32 @@ export async function pullAllFromFirebase(): Promise<{ success: boolean; details
   }
 }
 
+const FIREBASE_REALTIME_STORAGE_KEY = 'firebase_realtime_sync_enabled';
+
+export function isFirebaseRealtimeEnabled(): boolean {
+  try {
+    const val = localStorage.getItem(FIREBASE_REALTIME_STORAGE_KEY);
+    if (val === null) return true; // Default to true if configured
+    return val === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function setFirebaseRealtimeEnabled(enabled: boolean) {
+  try {
+    localStorage.setItem(FIREBASE_REALTIME_STORAGE_KEY, enabled ? 'true' : 'false');
+    window.dispatchEvent(new CustomEvent('firebase-realtime-status-changed', { detail: { enabled } }));
+  } catch (e) {
+    console.warn('Could not save firebase realtime preference:', e);
+  }
+}
+
 let activeListeners: Unsubscribe[] = [];
+
+export function isFirebaseRealtimeRunning(): boolean {
+  return activeListeners.length > 0;
+}
 
 /**
  * Start listening to real-time changes in Firestore collections
@@ -574,30 +599,207 @@ export function startFirebaseRealtimeSync(onUpdate?: (collection: string) => voi
   const firestore = getDb();
   if (!firestore) return () => {};
 
-  const collections = ['siswa', 'guru', 'daftar_tugas', 'tugas_siswa', 'kehadiran', 'penilaian'];
+  const collections = [
+    'sekolah_profile',
+    'siswa',
+    'guru',
+    'orang_tua',
+    'mata_pelajaran',
+    'jadwal_pelajaran',
+    'kehadiran',
+    'daftar_tugas',
+    'tugas_siswa',
+    'penilaian',
+    'temuan_khusus',
+    'notifikasi',
+    'buku_digital',
+    'operator_credentials'
+  ];
 
   collections.forEach(colName => {
     try {
       const colRef = collection(firestore, colName);
       const unsub = onSnapshot(colRef, (snapshot) => {
+        let hasChanges = false;
+
         snapshot.docChanges().forEach(change => {
-          if (change.type === 'added' || change.type === 'modified') {
-            const data: any = { id: change.doc.id, ...change.doc.data() };
-            if (colName === 'siswa') {
-              const current = db.siswa.getAll();
+          hasChanges = true;
+          const data: any = { id: change.doc.id, ...change.doc.data() };
+
+          if (colName === 'sekolah_profile') {
+            if (change.type !== 'removed') {
+              localStorage.setItem('profil_sekolah', JSON.stringify(data));
+              window.dispatchEvent(new Event('school-profile-updated'));
+            }
+          } else if (colName === 'operator_credentials') {
+            if (change.type !== 'removed') {
+              localStorage.setItem('operator_credentials', JSON.stringify([data]));
+            }
+          } else if (colName === 'siswa') {
+            const current = db.siswa.getAll();
+            if (change.type === 'removed') {
+              db.siswa.save(current.filter(s => s.id !== data.id));
+            } else {
               const idx = current.findIndex(s => s.id === data.id || (data.nisn && s.nisn === data.nisn));
               if (idx >= 0) {
                 current[idx] = { ...current[idx], ...data };
               } else {
-                current.push(data as any);
+                current.push(data);
               }
               db.siswa.save(current);
+            }
+          } else if (colName === 'guru') {
+            const current = db.guru.getAll();
+            if (change.type === 'removed') {
+              db.guru.save(current.filter(g => g.id !== data.id));
+            } else {
+              const idx = current.findIndex(g => g.id === data.id || (data.nip && g.nip === data.nip));
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.guru.save(current);
+            }
+          } else if (colName === 'orang_tua') {
+            const current = db.orangTua.getAll();
+            if (change.type === 'removed') {
+              db.orangTua.save(current.filter(o => o.id !== data.id));
+            } else {
+              const idx = current.findIndex(o => o.id === data.id || (data.siswaId && o.siswaId === data.siswaId));
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.orangTua.save(current);
+            }
+          } else if (colName === 'mata_pelajaran') {
+            const current = db.mataPelajaran.getAll();
+            if (change.type === 'removed') {
+              db.mataPelajaran.save(current.filter(m => m.id !== data.id));
+            } else {
+              const idx = current.findIndex(m => m.id === data.id || (data.kodeMapel && m.kodeMapel === data.kodeMapel));
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.mataPelajaran.save(current);
+            }
+          } else if (colName === 'jadwal_pelajaran') {
+            const current = db.jadwalPelajaran.getAll();
+            if (change.type === 'removed') {
+              db.jadwalPelajaran.save(current.filter(j => j.id !== data.id));
+            } else {
+              const idx = current.findIndex(j => j.id === data.id);
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.jadwalPelajaran.save(current);
+            }
+          } else if (colName === 'kehadiran') {
+            const current = db.absensi.getAll();
+            if (change.type === 'removed') {
+              db.absensi.save(current.filter(a => a.id !== data.id));
+            } else {
+              const idx = current.findIndex(a => a.id === data.id);
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.absensi.save(current);
+            }
+          } else if (colName === 'daftar_tugas') {
+            const current = db.daftarTugas.getAll();
+            if (change.type === 'removed') {
+              db.daftarTugas.save(current.filter(t => t.id !== data.id));
+            } else {
+              const idx = current.findIndex(t => t.id === data.id);
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.daftarTugas.save(current);
+            }
+          } else if (colName === 'tugas_siswa') {
+            const current = db.tugasSiswa.getAll();
+            if (change.type === 'removed') {
+              db.tugasSiswa.save(current.filter(ts => ts.id !== data.id));
+            } else {
+              const idx = current.findIndex(ts => ts.id === data.id);
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.tugasSiswa.save(current);
+            }
+          } else if (colName === 'penilaian') {
+            const current = db.penilaian.getAll();
+            if (change.type === 'removed') {
+              db.penilaian.save(current.filter(p => p.id !== data.id));
+            } else {
+              const idx = current.findIndex(p => p.id === data.id);
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.penilaian.save(current);
+            }
+            window.dispatchEvent(new Event('penilaians-updated'));
+            window.dispatchEvent(new Event('asesmens-updated'));
+          } else if (colName === 'temuan_khusus') {
+            const current = db.temuanKhusus.getAll();
+            if (change.type === 'removed') {
+              db.temuanKhusus.save(current.filter(tk => tk.id !== data.id));
+            } else {
+              const idx = current.findIndex(tk => tk.id === data.id);
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.temuanKhusus.save(current);
+            }
+          } else if (colName === 'notifikasi') {
+            const current = db.notifikasi.getAll();
+            if (change.type === 'removed') {
+              db.notifikasi.save(current.filter(n => n.id !== data.id));
+            } else {
+              const idx = current.findIndex(n => n.id === data.id);
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.notifikasi.save(current);
+            }
+          } else if (colName === 'buku_digital') {
+            const current = db.bukuDigital.getAll();
+            if (change.type === 'removed') {
+              db.bukuDigital.save(current.filter(b => b.id !== data.id));
+            } else {
+              const idx = current.findIndex(b => b.id === data.id);
+              if (idx >= 0) {
+                current[idx] = { ...current[idx], ...data };
+              } else {
+                current.push(data);
+              }
+              db.bukuDigital.save(current);
             }
           }
         });
 
-        if (onUpdate) onUpdate(colName);
-        window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: colName } }));
+        if (hasChanges) {
+          if (onUpdate) onUpdate(colName);
+          window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: colName } }));
+        }
       }, (error) => {
         console.warn(`[Firebase Realtime Listener Notice] ${colName}:`, error.message);
       });

@@ -24,7 +24,9 @@ import {
   getStoredFirebaseConfig,
   startFirebaseRealtimeSync,
   stopFirebaseRealtimeSync,
-  testFirebaseConnection
+  testFirebaseConnection,
+  isFirebaseRealtimeEnabled,
+  setFirebaseRealtimeEnabled
 } from '../services/firebase';
 import {
   saveCustomFirebaseConfig,
@@ -45,7 +47,7 @@ export function FirebaseSyncModal({ isOpen, onClose }: FirebaseSyncModalProps) {
   const [testResult, setTestResult] = useState<{ success: boolean; latencyMs?: number; message: string } | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [syncDetails, setSyncDetails] = useState<Record<string, number> | null>(null);
-  const [realtimeActive, setRealtimeActive] = useState(false);
+  const [realtimeActive, setRealtimeActive] = useState<boolean>(() => isFirebaseRealtimeEnabled() && isFirebaseConfigured());
 
   // Custom Firebase Form state
   const [apiKey, setApiKey] = useState('');
@@ -58,6 +60,15 @@ export function FirebaseSyncModal({ isOpen, onClose }: FirebaseSyncModalProps) {
   const [copiedRule, setCopiedRule] = useState(false);
 
   const isConfigured = isFirebaseConfigured();
+
+  useEffect(() => {
+    const handleStatusChange = (e: any) => {
+      const isEnabled = e?.detail?.enabled ?? isFirebaseRealtimeEnabled();
+      setRealtimeActive(isEnabled && isFirebaseConfigured());
+    };
+    window.addEventListener('firebase-realtime-status-changed', handleStatusChange);
+    return () => window.removeEventListener('firebase-realtime-status-changed', handleStatusChange);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -139,15 +150,17 @@ export function FirebaseSyncModal({ isOpen, onClose }: FirebaseSyncModalProps) {
   };
 
   const handleToggleRealtime = () => {
-    if (realtimeActive) {
+    const nextState = !realtimeActive;
+    setRealtimeActive(nextState);
+    setFirebaseRealtimeEnabled(nextState);
+
+    if (!nextState) {
       stopFirebaseRealtimeSync();
-      setRealtimeActive(false);
       setSyncStatus('ℹ️ Real-time listener Firebase dinonaktifkan.');
     } else {
       startFirebaseRealtimeSync(() => {
         setSyncStatus('⚡ Perubahan data diterima dari Cloud Firestore (Real-time).');
       });
-      setRealtimeActive(true);
       setSyncStatus('⚡ Real-time sync Firebase aktif! Setiap perubahan akan langsung disinkronkan.');
     }
   };

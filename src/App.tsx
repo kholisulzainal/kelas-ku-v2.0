@@ -16,6 +16,13 @@ import { UserRole } from './types';
 import { X } from 'lucide-react';
 import { pullAllFromSupabase, getSupabaseConfig } from './services/supabase';
 import { startRealtimeSync } from './services/realtimeSync';
+import { 
+  isFirebaseConfigured, 
+  pullAllFromFirebase, 
+  startFirebaseRealtimeSync, 
+  stopFirebaseRealtimeSync, 
+  isFirebaseRealtimeEnabled 
+} from './services/firebase';
 
 function MainApp() {
   const { theme } = useTheme();
@@ -29,28 +36,63 @@ function MainApp() {
 
   // Auto sync and Realtime listener on mount
   useEffect(() => {
-    // 1. Trigger pull ONLY if Supabase is explicitly configured
+    // 1. Supabase Sync & Realtime
     const { url, anonKey } = getSupabaseConfig();
+    let unsubscribeSupabase: (() => void) | undefined;
     if (url && anonKey) {
       pullAllFromSupabase()
         .then((res) => {
           if (res.success) {
-            console.log(`[Auto Sync] Pulled data from Supabase successfully (${res.pulledCount ?? 0} records).`);
+            console.log(`[Auto Sync Supabase] Pulled data successfully (${res.pulledCount ?? 0} records).`);
             window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: '' } }));
           } else {
-            console.warn('[Auto Sync] Notice during initial pull:', res.error);
+            console.warn('[Auto Sync Supabase] Notice during initial pull:', res.error);
           }
         })
         .catch((err) => {
-          console.warn('[Auto Sync] Non-blocking network exception during initial pull:', err?.message || err);
+          console.warn('[Auto Sync Supabase] Non-blocking network exception:', err?.message || err);
         });
 
-      // 2. Start real-time Postgres subscription channel
-      const unsubscribe = startRealtimeSync();
-      return () => {
-        if (unsubscribe) unsubscribe();
-      };
+      unsubscribeSupabase = startRealtimeSync();
     }
+
+    // 2. Firebase Sync & Persistent Realtime Listener
+    let unsubscribeFirebase: (() => void) | undefined;
+    if (isFirebaseConfigured()) {
+      pullAllFromFirebase()
+        .then((res) => {
+          if (res.success) {
+            console.log('[Auto Sync Firebase] Pulled data successfully.');
+            window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: '' } }));
+          } else {
+            console.warn('[Auto Sync Firebase] Notice during initial pull:', res.error);
+          }
+        })
+        .catch((err) => {
+          console.warn('[Auto Sync Firebase] Non-blocking network exception:', err?.message || err);
+        });
+
+      if (isFirebaseRealtimeEnabled()) {
+        unsubscribeFirebase = startFirebaseRealtimeSync();
+      }
+    }
+
+    // 3. Dynamic event listener for realtime toggle changes
+    const handleFirebaseRealtimeToggle = (e: any) => {
+      const isEnabled = e?.detail?.enabled ?? isFirebaseRealtimeEnabled();
+      if (isEnabled && isFirebaseConfigured()) {
+        startFirebaseRealtimeSync();
+      } else {
+        stopFirebaseRealtimeSync();
+      }
+    };
+    window.addEventListener('firebase-realtime-status-changed', handleFirebaseRealtimeToggle);
+
+    return () => {
+      if (unsubscribeSupabase) unsubscribeSupabase();
+      if (unsubscribeFirebase) unsubscribeFirebase();
+      window.removeEventListener('firebase-realtime-status-changed', handleFirebaseRealtimeToggle);
+    };
   }, []);
   
   // Navigation states

@@ -24,7 +24,9 @@ import {
   getStoredFirebaseConfig,
   startFirebaseRealtimeSync,
   stopFirebaseRealtimeSync,
-  testFirebaseConnection
+  testFirebaseConnection,
+  isFirebaseRealtimeEnabled,
+  setFirebaseRealtimeEnabled
 } from '../services/firebase';
 import {
   saveCustomFirebaseConfig,
@@ -40,7 +42,7 @@ export function FirebaseSettingsTab() {
   const [testResult, setTestResult] = useState<{ success: boolean; latencyMs?: number; message: string } | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [syncDetails, setSyncDetails] = useState<Record<string, number> | null>(null);
-  const [realtimeActive, setRealtimeActive] = useState(false);
+  const [realtimeActive, setRealtimeActive] = useState<boolean>(() => isFirebaseRealtimeEnabled() && isFirebaseConfigured());
 
   // Form input state
   const [apiKey, setApiKey] = useState('');
@@ -53,6 +55,15 @@ export function FirebaseSettingsTab() {
   const [copiedRules, setCopiedRules] = useState(false);
 
   const isConfigured = isFirebaseConfigured();
+
+  useEffect(() => {
+    const handleStatusChange = (e: any) => {
+      const isEnabled = e?.detail?.enabled ?? isFirebaseRealtimeEnabled();
+      setRealtimeActive(isEnabled && isFirebaseConfigured());
+    };
+    window.addEventListener('firebase-realtime-status-changed', handleStatusChange);
+    return () => window.removeEventListener('firebase-realtime-status-changed', handleStatusChange);
+  }, []);
 
   useEffect(() => {
     const custom = getStoredFirebaseConfig();
@@ -135,15 +146,17 @@ export function FirebaseSettingsTab() {
   };
 
   const handleToggleRealtime = () => {
-    if (realtimeActive) {
+    const nextState = !realtimeActive;
+    setRealtimeActive(nextState);
+    setFirebaseRealtimeEnabled(nextState);
+
+    if (!nextState) {
       stopFirebaseRealtimeSync();
-      setRealtimeActive(false);
       setSyncStatus('ℹ️ Real-time listener Firebase dinonaktifkan.');
     } else {
       startFirebaseRealtimeSync(() => {
         setSyncStatus('⚡ Perubahan data diterima dari Cloud Firestore (Real-time).');
       });
-      setRealtimeActive(true);
       setSyncStatus('⚡ Real-time sync Firebase aktif! Setiap pembaruan langsung disinkronkan.');
     }
   };

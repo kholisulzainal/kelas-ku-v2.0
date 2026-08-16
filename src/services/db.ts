@@ -298,6 +298,7 @@ export const db = {
       }];
       localStorage.setItem('operator_credentials', JSON.stringify(arr));
       saveOperatorCredentialsToSupabase(cleanUsername, cleanPassword).catch(err => console.warn('Sync operator error:', err));
+      syncRowToFirebase('operator_credentials', 'op-001', arr[0]).catch(() => {});
     }
   },
 
@@ -334,6 +335,7 @@ export const db = {
     update: (updated: ProfilSekolah) => {
       localStorage.setItem('profil_sekolah', JSON.stringify(updated));
       syncRowToSupabase('profil_sekolah', updated);
+      syncRowToFirebase('sekolah_profile', updated.id || 'sch-001', updated);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'profil_sekolah' } }));
     }
   },
@@ -346,7 +348,12 @@ export const db = {
     },
     save: (items: Guru[]) => {
       localStorage.setItem('guru', JSON.stringify(items));
-      if (Array.isArray(items)) items.forEach(item => syncRowToSupabase('guru', item));
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          syncRowToSupabase('guru', item);
+          syncRowToFirebase('guru', item.id, item);
+        });
+      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'guru' } }));
     },
     upsert: (item: Guru) => {
@@ -360,12 +367,14 @@ export const db = {
       }
       db.guru.save(list);
       syncRowToSupabase('guru', finalItem);
+      syncRowToFirebase('guru', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'guru' } }));
     },
     delete: (id: string) => {
       const list = db.guru.getAll().filter(g => g.id !== id);
       db.guru.save(list);
       deleteRowFromSupabase('guru', id);
+      deleteRowFromFirebase('guru', id);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'guru' } }));
     }
   },
@@ -379,7 +388,12 @@ export const db = {
     },
     save: (items: Siswa[]) => {
       localStorage.setItem('siswa', JSON.stringify(items));
-      if (Array.isArray(items)) items.forEach(item => syncRowToSupabase('siswa', item));
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          syncRowToSupabase('siswa', item);
+          syncRowToFirebase('siswa', item.id, item);
+        });
+      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'siswa' } }));
     },
     upsert: (item: Siswa) => {
@@ -393,12 +407,14 @@ export const db = {
       }
       db.siswa.save(list);
       syncRowToSupabase('siswa', finalItem);
+      syncRowToFirebase('siswa', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'siswa' } }));
     },
     delete: (id: string) => {
       const list = db.siswa.getAll().filter(s => s.id !== id);
       db.siswa.save(list);
       deleteRowFromSupabase('siswa', id);
+      deleteRowFromFirebase('siswa', id);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'siswa' } }));
     }
   },
@@ -411,7 +427,12 @@ export const db = {
     },
     save: (items: OrangTua[]) => {
       localStorage.setItem('orang_tua', JSON.stringify(items));
-      if (Array.isArray(items)) items.forEach(item => syncRowToSupabase('orang_tua', item));
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          syncRowToSupabase('orang_tua', item);
+          syncRowToFirebase('orang_tua', item.id, item);
+        });
+      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'orang_tua' } }));
     },
     upsert: (item: OrangTua) => {
@@ -425,12 +446,14 @@ export const db = {
       }
       db.orangTua.save(list);
       syncRowToSupabase('orang_tua', finalItem);
+      syncRowToFirebase('orang_tua', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'orang_tua' } }));
     },
     delete: (id: string) => {
       const list = db.orangTua.getAll().filter(o => o.id !== id);
       db.orangTua.save(list);
       deleteRowFromSupabase('orang_tua', id);
+      deleteRowFromFirebase('orang_tua', id);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'orang_tua' } }));
     }
   },
@@ -468,7 +491,12 @@ export const db = {
     },
     save: (items: MataPelajaran[]) => {
       localStorage.setItem('mata_pelajaran', JSON.stringify(items));
-      if (Array.isArray(items)) items.forEach(item => syncRowToSupabase('mata_pelajaran', item));
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          syncRowToSupabase('mata_pelajaran', item);
+          syncRowToFirebase('mata_pelajaran', item.id, item);
+        });
+      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'mata_pelajaran' } }));
     },
     upsert: (item: MataPelajaran) => {
@@ -482,12 +510,14 @@ export const db = {
       }
       db.mataPelajaran.save(list);
       syncRowToSupabase('mata_pelajaran', finalItem);
+      syncRowToFirebase('mata_pelajaran', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'mata_pelajaran' } }));
     },
     delete: (id: string) => {
       const list = db.mataPelajaran.getAll().filter(m => m.id !== id);
       db.mataPelajaran.save(list);
       deleteRowFromSupabase('mata_pelajaran', id);
+      deleteRowFromFirebase('mata_pelajaran', id);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'mata_pelajaran' } }));
     }
   },
@@ -502,7 +532,12 @@ export const db = {
     },
     save: (items: JadwalPelajaran[]) => {
       localStorage.setItem('jadwal_pelajaran', JSON.stringify(items));
-      if (Array.isArray(items)) items.forEach(item => syncRowToSupabase('jadwal_pelajaran', item));
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          syncRowToSupabase('jadwal_pelajaran', item);
+          syncRowToFirebase('jadwal_pelajaran', item.id, item);
+        });
+      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'jadwal_pelajaran' } }));
     },
     upsert: (item: JadwalPelajaran) => {
@@ -516,12 +551,14 @@ export const db = {
       }
       db.jadwalPelajaran.save(list);
       syncRowToSupabase('jadwal_pelajaran', finalItem);
+      syncRowToFirebase('jadwal_pelajaran', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'jadwal_pelajaran' } }));
     },
     delete: (id: string) => {
       const list = db.jadwalPelajaran.getAll().filter(j => j.id !== id);
       db.jadwalPelajaran.save(list);
       deleteRowFromSupabase('jadwal_pelajaran', id);
+      deleteRowFromFirebase('jadwal_pelajaran', id);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'jadwal_pelajaran' } }));
     }
   },
@@ -550,7 +587,10 @@ export const db = {
         syncedItems.push(list[idx > -1 ? idx : list.length - 1]);
       });
       db.absensi.save(list);
-      syncedItems.forEach(item => syncRowToSupabase('absensi', item));
+      syncedItems.forEach(item => {
+        syncRowToSupabase('absensi', item);
+        syncRowToFirebase('kehadiran', item.id, item);
+      });
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'absensi' } }));
     },
     upsert: (item: Absensi) => {
@@ -564,12 +604,14 @@ export const db = {
       }
       db.absensi.save(list);
       syncRowToSupabase('absensi', finalItem);
+      syncRowToFirebase('kehadiran', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'absensi' } }));
     },
     clearAll: () => {
       const existing = db.absensi.getAll();
       existing.forEach(item => {
         deleteRowFromSupabase('absensi', item.id);
+        deleteRowFromFirebase('kehadiran', item.id);
       });
       localStorage.setItem('absensi', '[]');
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'absensi' } }));
@@ -598,6 +640,7 @@ export const db = {
       }
       db.daftarTugas.save(list);
       syncRowToSupabase('daftar_tugas', finalItem);
+      syncRowToFirebase('daftar_tugas', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'daftar_tugas' } }));
 
       // If new, automatically create tugas_siswa rows for all students (status: false)
@@ -640,6 +683,7 @@ export const db = {
       const childList = db.tugasSiswa.getAll().filter(ts => ts.tugasId !== id);
       db.tugasSiswa.save(childList);
       deleteRowFromSupabase('daftar_tugas', id);
+      deleteRowFromFirebase('daftar_tugas', id);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'daftar_tugas' } }));
     }
   },
@@ -663,8 +707,10 @@ export const db = {
       } else {
         list.push(finalItem);
       }
+      const savedItem = list[idx > -1 ? idx : list.length - 1];
       db.tugasSiswa.save(list);
-      syncRowToSupabase('tugas_siswa', list[idx > -1 ? idx : list.length - 1]);
+      syncRowToSupabase('tugas_siswa', savedItem);
+      syncRowToFirebase('tugas_siswa', savedItem.id, savedItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'tugas_siswa' } }));
     },
     // Simulate Automatic Grading and submit from student
@@ -716,6 +762,7 @@ export const db = {
 
       db.tugasSiswa.save(newList);
       syncRowToSupabase('tugas_siswa', submitted, true).catch(() => {});
+      syncRowToFirebase('tugas_siswa', submitted.id, submitted).catch(() => {});
 
       // Save into formal Penilaian (harian) as well if score exists!
       if (task && finalScore != null) {
@@ -834,6 +881,7 @@ export const db = {
       }
       db.penilaian.save(list);
       syncRowToSupabase('penilaian', finalItem);
+      syncRowToFirebase('penilaian', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'penilaian' } }));
       window.dispatchEvent(new Event('penilaians-updated'));
       window.dispatchEvent(new Event('asesmens-updated'));
@@ -842,6 +890,7 @@ export const db = {
       const list = db.penilaian.getAll().filter(a => a.id !== id);
       db.penilaian.save(list);
       deleteRowFromSupabase('penilaian', id);
+      deleteRowFromFirebase('penilaian', id);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'penilaian' } }));
       window.dispatchEvent(new Event('penilaians-updated'));
       window.dispatchEvent(new Event('asesmens-updated'));
@@ -873,12 +922,14 @@ export const db = {
       }
       db.temuanKhusus.save(list);
       syncRowToSupabase('temuan_khusus', finalItem);
+      syncRowToFirebase('temuan_khusus', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'temuan_khusus' } }));
     },
     delete: (id: string) => {
       const list = db.temuanKhusus.getAll().filter(t => t.id !== id);
       db.temuanKhusus.save(list);
       deleteRowFromSupabase('temuan_khusus', id);
+      deleteRowFromFirebase('temuan_khusus', id);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'temuan_khusus' } }));
     }
   },
@@ -904,6 +955,7 @@ export const db = {
       list.unshift(newItem); // Newest first
       db.notifikasi.save(list);
       syncRowToSupabase('notifikasi', newItem);
+      syncRowToFirebase('notifikasi', newItem.id, newItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'notifikasi' } }));
     },
     markAsRead: (id: string) => {
@@ -988,12 +1040,14 @@ export const db = {
       }
       db.bukuDigital.save(list);
       syncRowToSupabase('buku_digital', finalItem);
+      syncRowToFirebase('buku_digital', finalItem.id, finalItem);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'buku_digital' } }));
     },
     delete: (id: string) => {
       const list = db.bukuDigital.getAll().filter(b => b.id !== id);
       db.bukuDigital.save(list);
       deleteRowFromSupabase('buku_digital', id);
+      deleteRowFromFirebase('buku_digital', id);
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'buku_digital' } }));
     }
   },
