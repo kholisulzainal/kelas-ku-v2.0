@@ -4,7 +4,6 @@ import { useTheme } from './ThemeContext';
 import { ThemeControlMenu } from './ThemeControlMenu';
 import { db } from '../services/db';
 import { Notifikasi, UserRole } from '../types';
-import { SupabaseSyncModal } from './SupabaseSyncModal';
 import { getStoredGoogleUser, saveStoredGoogleUser, saveGoogleToken } from '../services/googleServices';
 import { syncRowToSupabase } from '../services/supabase';
 
@@ -36,7 +35,6 @@ export function Header({ currentRole, currentUserId, onRoleChange, onLogout, onT
     };
   }, []);
   const [school, setSchool] = useState(() => db.profilSekolah.get());
-  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [googleEmailInput, setGoogleEmailInput] = useState('');
   const [googleStatusMsg, setGoogleStatusMsg] = useState('');
@@ -424,9 +422,6 @@ export function Header({ currentRole, currentUserId, onRoleChange, onLogout, onT
           </button>
         </div>
       </div>
-      
-      {/* Supabase Sync Panel Modal */}
-      <SupabaseSyncModal isOpen={isSupabaseModalOpen} onClose={() => setIsSupabaseModalOpen(false)} />
 
       {/* GOOGLE SIGN-IN & PUSH NOTIFICATION MODAL */}
       {isGoogleModalOpen && (

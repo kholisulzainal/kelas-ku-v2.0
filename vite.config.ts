@@ -9,8 +9,11 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, './src'),
       },
+    },
+    optimizeDeps: {
+      include: ['firebase/app', 'firebase/firestore'],
     },
     define: {
       'process.env.APP_URL': JSON.stringify(env.APP_URL || ''),

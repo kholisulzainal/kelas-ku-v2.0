@@ -3,6 +3,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // Define configuration storage keys
 const URL_KEY = 'supabase_project_url';
 const ANON_KEY = 'supabase_anon_key';
+const SUPABASE_DISCONNECTED_KEY = 'supabase_disconnected';
 
 // Default Supabase credentials fallback (Empty by default unless user configures custom credentials)
 export const DEFAULT_SUPABASE_URL = '';
@@ -13,11 +14,19 @@ export interface SupabaseConfig {
   anonKey: string;
 }
 
+export function isSupabaseDisconnected(): boolean {
+  return localStorage.getItem(SUPABASE_DISCONNECTED_KEY) === 'true';
+}
+
 export function getSupabaseConfig(): SupabaseConfig {
+  if (isSupabaseDisconnected()) {
+    return { url: '', anonKey: '' };
+  }
+
   let url = localStorage.getItem(URL_KEY) || '';
   let anonKey = localStorage.getItem(ANON_KEY) || '';
 
-  // Fallback ONLY to real environment variables if localStorage is empty
+  // Fallback ONLY to real environment variables if localStorage is empty and not explicitly disconnected
   if (!url) {
     const envUrl = ((import.meta as any).env?.VITE_SUPABASE_URL as string) || 
                    ((import.meta as any).env?.NEXT_PUBLIC_SUPABASE_URL as string) || 
@@ -51,25 +60,32 @@ export function getSupabaseConfig(): SupabaseConfig {
 }
 
 export function saveSupabaseConfig(config: SupabaseConfig) {
-  const oldUrl = localStorage.getItem(URL_KEY) || '';
-  const oldKey = localStorage.getItem(ANON_KEY) || '';
-
   let formattedUrl = (config.url || '').trim();
-  if (formattedUrl && !/^https?:\/\//i.test(formattedUrl)) {
-    formattedUrl = `https://${formattedUrl}`;
+  const cleanKey = (config.anonKey || '').trim();
+
+  if (formattedUrl && cleanKey) {
+    if (!/^https?:\/\//i.test(formattedUrl)) {
+      formattedUrl = `https://${formattedUrl}`;
+    }
+    localStorage.removeItem(SUPABASE_DISCONNECTED_KEY);
+    localStorage.setItem(URL_KEY, formattedUrl);
+    localStorage.setItem(ANON_KEY, cleanKey);
+  } else {
+    localStorage.removeItem(URL_KEY);
+    localStorage.removeItem(ANON_KEY);
+    localStorage.setItem(SUPABASE_DISCONNECTED_KEY, 'true');
   }
 
-  if (formattedUrl) localStorage.setItem(URL_KEY, formattedUrl);
-  else localStorage.removeItem(URL_KEY);
+  resetSupabaseInstance();
+  localStorage.removeItem('_supabase_sync_hashes');
+}
 
-  if (config.anonKey) localStorage.setItem(ANON_KEY, config.anonKey.trim());
-  else localStorage.removeItem(ANON_KEY);
-
-  // If the credentials changed, reset the delta sync cache to force a full initial sync
-  if (oldUrl.trim() !== formattedUrl || oldKey.trim() !== (config.anonKey || '').trim()) {
-    console.log('[Delta Sync] Supabase configuration changed. Clearing delta sync cache.');
-    localStorage.removeItem('_supabase_sync_hashes');
-  }
+export function disconnectSupabase() {
+  localStorage.removeItem(URL_KEY);
+  localStorage.removeItem(ANON_KEY);
+  localStorage.setItem(SUPABASE_DISCONNECTED_KEY, 'true');
+  resetSupabaseInstance();
+  localStorage.removeItem('_supabase_sync_hashes');
 }
 
 let supabaseInstance: SupabaseClient | null = null;

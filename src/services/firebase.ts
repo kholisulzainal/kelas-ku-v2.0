@@ -9,13 +9,14 @@ import {
   onSnapshot,
   Unsubscribe
 } from 'firebase/firestore';
-import { getDb, getCustomFirebaseConfig, resetFirebaseInstances, FirebaseCustomConfig } from './firebaseClient';
+import { getDb, getCustomFirebaseConfig, resetFirebaseInstances, isFirebaseDisconnected, FirebaseCustomConfig } from './firebaseClient';
 import { db } from './db';
 
 export function isFirebaseConfigured(): boolean {
+  if (isFirebaseDisconnected()) return false;
   const custom = getCustomFirebaseConfig();
-  if (custom && custom.projectId) return true;
-  return Boolean(import.meta.env.VITE_FIREBASE_PROJECT_ID || import.meta.env.VITE_FIREBASE_API_KEY);
+  if (custom && custom.projectId && custom.projectId.trim()) return true;
+  return Boolean(import.meta.env.VITE_FIREBASE_PROJECT_ID);
 }
 
 export function getStoredFirebaseConfig(): FirebaseCustomConfig | null {
@@ -80,10 +81,16 @@ export function formatFirebaseError(err: any): string {
  * Ping/Test connection to Firebase Firestore with fast REST check + SDK fallback
  */
 export async function testFirebaseConnection(timeoutMs = 5000): Promise<{ success: boolean; latencyMs?: number; message: string }> {
+  if (isFirebaseDisconnected()) {
+    return {
+      success: false,
+      message: 'Firebase dalam status terputus (Disconnected / Mode Lokal Offline).'
+    };
+  }
   const startTime = Date.now();
   const customConfig = getCustomFirebaseConfig();
-  const projectId = customConfig?.projectId || import.meta.env.VITE_FIREBASE_PROJECT_ID || '';
-  const apiKey = customConfig?.apiKey || import.meta.env.VITE_FIREBASE_API_KEY || '';
+  const projectId = customConfig?.projectId || (import.meta.env.VITE_FIREBASE_PROJECT_ID as string) || '';
+  const apiKey = customConfig?.apiKey || (import.meta.env.VITE_FIREBASE_API_KEY as string) || '';
 
   if (!projectId || !projectId.trim()) {
     return {

@@ -14,7 +14,8 @@ import {
   Zap,
   Info,
   RefreshCw,
-  Loader2
+  Loader2,
+  Unplug
 } from 'lucide-react';
 import {
   pushAllToFirebase,
@@ -55,7 +56,7 @@ export function FirebaseSettingsTab() {
 
   useEffect(() => {
     const custom = getStoredFirebaseConfig();
-    if (custom) {
+    if (custom && custom.projectId) {
       setApiKey(custom.apiKey || '');
       setProjectId(custom.projectId || '');
       setAppId(custom.appId || '');
@@ -63,7 +64,12 @@ export function FirebaseSettingsTab() {
       setStorageBucket(custom.storageBucket || '');
       setMessagingSenderId(custom.messagingSenderId || '');
     } else {
-      setProjectId(import.meta.env.VITE_FIREBASE_PROJECT_ID || 'kelasku-cloud');
+      setApiKey('');
+      setProjectId('');
+      setAppId('');
+      setAuthDomain('');
+      setStorageBucket('');
+      setMessagingSenderId('');
     }
   }, []);
 
@@ -179,8 +185,12 @@ export function FirebaseSettingsTab() {
     }
   };
 
-  const handleResetConfig = async () => {
-    if (window.confirm('Hapus konfigurasi kustom Firebase dan kembali ke pengaturan bawaan?')) {
+  const handleDisconnect = async () => {
+    if (window.confirm('Putuskan koneksi (Disconnect) dari Firebase? Aplikasi akan beralih ke penyimpanan lokal (offline).')) {
+      if (realtimeActive) {
+        stopFirebaseRealtimeSync();
+        setRealtimeActive(false);
+      }
       await clearCustomFirebaseConfig();
       setApiKey('');
       setProjectId('');
@@ -188,9 +198,14 @@ export function FirebaseSettingsTab() {
       setAuthDomain('');
       setStorageBucket('');
       setMessagingSenderId('');
-      setSavedMsg('ℹ️ Konfigurasi kustom dihapus.');
+      setSavedMsg('ℹ️ Berhasil memutuskan koneksi Firebase.');
       setTestResult(null);
-      setTimeout(() => setSavedMsg(''), 3000);
+      setSyncDetails(null);
+      setSyncStatus('ℹ️ Firebase terputus (Mode Lokal Offline).');
+      setTimeout(() => {
+        setSavedMsg('');
+        setSyncStatus(null);
+      }, 3500);
     }
   };
 
@@ -267,11 +282,16 @@ service cloud.firestore {
         <div className="space-y-4 pt-1">
           <div className="p-3.5 rounded-2xl border bg-white/80 dark:bg-slate-900/80 border-amber-200/60 dark:border-amber-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-1">
-              <div className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+              <div className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-wrap">
                 <span>Database Proyek:</span>
                 <strong className="text-xs text-slate-900 dark:text-white font-mono px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded-md">
-                  {projectId || 'kelasku-cloud'}
+                  {projectId || 'Belum Diatur'}
                 </strong>
+                {testResult?.latencyMs && (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
+                    {testResult.latencyMs} ms
+                  </span>
+                )}
               </div>
               {testResult && (
                 <div className={`text-xs font-bold flex items-center gap-1.5 ${testResult.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
@@ -281,7 +301,7 @@ service cloud.firestore {
               )}
             </div>
 
-            <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
               <button
                 type="button"
                 id="btn_test_firebase_connection"
@@ -294,9 +314,18 @@ service cloud.firestore {
               </button>
 
               {isConfigured ? (
-                <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[11px] font-extrabold rounded-xl flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Terkoneksi
-                </span>
+                <>
+                  <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[11px] font-extrabold rounded-xl flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Terkoneksi
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDisconnect}
+                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-[11px] font-extrabold rounded-xl flex items-center gap-1 border border-rose-200 dark:border-rose-900 cursor-pointer transition-all"
+                  >
+                    <Unplug className="w-3.5 h-3.5" /> Disconnect
+                  </button>
+                </>
               ) : (
                 <span className="px-3 py-1.5 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[11px] font-extrabold rounded-xl flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5" /> Belum Diatur
@@ -312,12 +341,13 @@ service cloud.firestore {
             </div>
           )}
 
+          {/* Sync Actions: Push & Pull */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
               id="btn_push_all_firebase_tab"
               onClick={handlePushAll}
-              disabled={isPushing || isPulling}
+              disabled={isPushing || isPulling || !isConfigured}
               className="p-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs flex flex-col items-start gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-50 text-left"
             >
               <div className="p-2 bg-white/20 rounded-xl">
@@ -335,7 +365,7 @@ service cloud.firestore {
               type="button"
               id="btn_pull_all_firebase_tab"
               onClick={handlePullAll}
-              disabled={isPushing || isPulling}
+              disabled={isPushing || isPulling || !isConfigured}
               className="p-4 rounded-2xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs flex flex-col items-start gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-50 border border-slate-700 text-left"
             >
               <div className="p-2 bg-white/10 rounded-xl">
@@ -356,31 +386,38 @@ service cloud.firestore {
                 <Radio className={`w-4 h-4 ${realtimeActive ? 'animate-pulse text-emerald-600' : ''}`} />
               </div>
               <div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">Live Real-time Sync</div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">Live Real-time Sync (Firebase)</div>
                 <div className="text-[11px] text-slate-500">Menerima pembaruan data secara langsung saat ada perubahan di cloud.</div>
               </div>
             </div>
             <button
               type="button"
+              disabled={!isConfigured}
               onClick={handleToggleRealtime}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
                 realtimeActive
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
-                  : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200'
+                  : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700'
               }`}
             >
-              {realtimeActive ? 'Aktif' : 'Nonaktif'}
+              {realtimeActive ? 'Nonaktifkan Realtime' : 'Aktifkan Realtime'}
             </button>
           </div>
 
+          {/* Sync details report table */}
           {syncDetails && (
-            <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
-              <div className="text-xs font-bold text-slate-700 dark:text-slate-300">Rincian Dokumen Terkoneksi:</div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+            <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-amber-200/60 dark:border-amber-900/40 space-y-2">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                <span>Rincian Data Tersinkronisasi:</span>
+                <span className="text-[11px] text-amber-600 font-mono">
+                  Total {Object.values(syncDetails).reduce((a: number, b: number) => a + b, 0)} Baris
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
                 {Object.entries(syncDetails).map(([col, count]) => (
-                  <div key={col} className="p-2 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                    <span className="text-slate-600 dark:text-slate-400 capitalize">{col.replace(/_/g, ' ')}:</span>
-                    <span className="font-bold text-amber-600 dark:text-amber-400">{count}</span>
+                  <div key={col} className="p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs">
+                    <span className="capitalize text-slate-600 dark:text-slate-400 text-[11px] truncate">{col.replace(/_/g, ' ')}</span>
+                    <strong className="font-mono text-amber-600 dark:text-amber-400 font-bold">{count}</strong>
                   </div>
                 ))}
               </div>
@@ -391,141 +428,138 @@ service cloud.firestore {
 
       {/* SECTION 2: CONFIGURATION */}
       {activeSection === 'config' && (
-        <form onSubmit={handleSaveConfig} className="space-y-3.5 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-amber-200/60 dark:border-slate-700">
-          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            Masukkan konfigurasi Web App dari <strong>Firebase Console</strong> (Project Settings &gt; General &gt; Your apps):
-          </p>
-
-          {savedMsg && (
-            <div className={`p-3 border text-xs rounded-xl font-bold flex items-center gap-2 ${
-              savedMsg.includes('✅') 
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
-                : savedMsg.includes('⏳')
-                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
-                : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
-            }`}>
-              {savedMsg.includes('⏳') ? (
-                <Loader2 className="w-4 h-4 animate-spin text-amber-600 shrink-0" />
-              ) : savedMsg.includes('✅') ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-              )}
-              <span>{savedMsg}</span>
+        <form onSubmit={handleSaveConfig} className="space-y-4 pt-1">
+          <div className="p-4 rounded-2xl border border-amber-200/70 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20">
+            <div className="flex items-start gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                <strong>Tips Konfigurasi Mandiri:</strong> Cukup masukkan <strong>Project ID</strong> dan <strong>Web API Key</strong> dari Firebase Console Anda. Data disimpan secara aman di peramban (browser) Anda.
+              </div>
             </div>
-          )}
+          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Project ID <span className="text-red-500">*</span>
+                Firebase Project ID <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                required
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
-                placeholder="contoh: kelasku-sekolah"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="misal: kelasku-cloud-app"
+                required
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
               />
+              <p className="text-[10px] text-slate-500 mt-1">Ditemukan di Project Settings &gt; General di Firebase Console</p>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                API Key (Web SDK)
+                Web API Key (Opsional / Direkomendasikan)
               </label>
               <input
                 type="text"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="AIzaSyD-xxxxxxxxxxxx"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="misal: AIzaSy..."
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
               />
+              <p className="text-[10px] text-slate-500 mt-1">Web API Key dari Project Settings Firebase</p>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                App ID
+                App ID (Opsional)
               </label>
               <input
                 type="text"
                 value={appId}
                 onChange={(e) => setAppId(e.target.value)}
-                placeholder="1:123456789:web:abcdef"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="misal: 1:1234567890:web:abcdef..."
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Auth Domain
+                Auth Domain (Opsional)
               </label>
               <input
                 type="text"
                 value={authDomain}
                 onChange={(e) => setAuthDomain(e.target.value)}
-                placeholder="kelasku-sekolah.firebaseapp.com"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="misal: project-id.firebaseapp.com"
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700">
-            <button
-              type="button"
-              onClick={handleResetConfig}
-              className="text-xs font-bold text-red-600 hover:text-red-700 cursor-pointer"
-            >
-              Reset ke Bawaan
-            </button>
+          {savedMsg && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-300">
+              {savedMsg}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-2">
             <button
               type="submit"
               disabled={isTesting}
-              className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-md cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5"
+              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-sm disabled:opacity-50"
             >
-              {isTesting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Menguji Koneksi...</span>
-                </>
-              ) : (
-                <span>Simpan Konfigurasi</span>
-              )}
+              {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              <span>Simpan &amp; Hubungkan Firebase</span>
             </button>
+
+            {isConfigured && (
+              <button
+                type="button"
+                onClick={handleDisconnect}
+                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs font-bold rounded-xl border border-rose-200 dark:border-rose-900 cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                <Unplug className="w-4 h-4" />
+                <span>Disconnect (Putuskan Koneksi)</span>
+              </button>
+            )}
           </div>
         </form>
       )}
 
-      {/* SECTION 3: SETUP GUIDE */}
+      {/* SECTION 3: GUIDE & SECURITY RULES */}
       {activeSection === 'guide' && (
-        <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-white dark:bg-slate-900 p-4 rounded-2xl border border-amber-200/60 dark:border-slate-700">
-          <div className="space-y-2">
-            <div className="font-extrabold text-slate-900 dark:text-white text-xs flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-amber-600" />
-              Langkah Pembuatan di Firebase Console:
-            </div>
-            <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-700 dark:text-slate-300">
-              <li>Buka <strong>https://console.firebase.google.com</strong> lalu buat proyek baru.</li>
-              <li>Masuk ke <strong>Build &gt; Firestore Database</strong> &gt; klik <strong>Create Database</strong>.</li>
-              <li>Pilih lokasi server <strong>asia-southeast2 (Jakarta)</strong> atau <strong>asia-southeast1 (Singapura)</strong>.</li>
-              <li>Pilih <strong>Start in test mode</strong> lalu klik <strong>Enable</strong>.</li>
-              <li>Salin <strong>Project ID</strong> dan <strong>Web API Key</strong> ke formulir Konfigurasi di samping.</li>
+        <div className="space-y-4 pt-1">
+          <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-black">1</span>
+              Langkah Membuat Firestore Database di Firebase Console
+            </h4>
+            <ol className="list-decimal list-inside space-y-1 text-xs text-slate-600 dark:text-slate-300 pl-2 leading-relaxed">
+              <li>Buka <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="text-amber-600 underline font-bold">Firebase Console</a> lalu buat Proyek Baru atau pilih proyek Anda.</li>
+              <li>Di menu kiri, pilih menu <strong>Build &gt; Firestore Database</strong>.</li>
+              <li>Klik tombol <strong>Create Database</strong>, pilih lokasi server (misal: <em>asia-southeast2 (Jakarta)</em>), lalu klik Next.</li>
+              <li>Pilih mode <strong>Start in test mode</strong> atau production mode, lalu klik <strong>Create</strong>.</li>
             </ol>
           </div>
 
-          <div className="p-3 bg-slate-900 text-slate-200 rounded-xl space-y-1.5 font-mono text-[11px]">
-            <div className="flex items-center justify-between text-slate-400 font-sans text-xs">
-              <span>Aturan Keamanan Firestore (Rules):</span>
+          <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-black">2</span>
+                Pengaturan Security Rules (Izin Akses Baca/Tulis)
+              </h4>
               <button
                 type="button"
                 onClick={handleCopyRules}
-                className="flex items-center gap-1 text-amber-400 hover:text-amber-300 cursor-pointer"
+                className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 rounded-lg border border-amber-200 dark:border-amber-800 flex items-center gap-1 cursor-pointer"
               >
-                {copiedRules ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedRules ? 'Disalin!' : 'Salin Rules'}
+                {copiedRules ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedRules ? 'Tersalin!' : 'Salin Rules'}</span>
               </button>
             </div>
-            <pre className="overflow-x-auto text-[10px] text-amber-300 leading-relaxed">
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Buka tab <strong>Rules</strong> di Firestore Database Firebase Console, ganti aturan dengan kode berikut, lalu klik <strong>Publish</strong>:
+            </p>
+            <pre className="p-3 bg-slate-900 text-emerald-400 rounded-xl text-xs font-mono overflow-x-auto leading-relaxed border border-slate-800">
 {`rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {

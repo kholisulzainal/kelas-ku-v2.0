@@ -114,7 +114,7 @@ function MainApp() {
     switch (currentRole) {
       case 'operator':
       case 'guru':
-        return <GuruDashboard activeTab={activeTab} />;
+        return <GuruDashboard activeTab={activeTab} setActiveTab={setActiveTab} />;
       case 'siswa':
         return <SiswaDashboard activeTab={activeTab} siswaId={currentUserId} />;
       case 'orang_tua':

@@ -26,7 +26,12 @@ import {
   Sun,
   Moon,
   Laptop,
-  Flame
+  Flame,
+  Camera,
+  Image,
+  MapPin,
+  Building,
+  Calendar
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../services/db';
@@ -34,6 +39,7 @@ import { useTheme } from './ThemeContext';
 import { pullAllFromSupabase, getSupabaseConfig, syncRowToSupabase } from '../services/supabase';
 import { isFirebaseConfigured, getStoredFirebaseConfig } from '../services/firebase';
 import { FirebaseSettingsTab } from './FirebaseSettingsTab';
+import { SupabaseSettingsTab } from './SupabaseSettingsTab';
 import { exportToExcel } from '../utils/export';
 import { Guru, Siswa, Absensi, ProfilSekolah } from '../types';
 
@@ -151,15 +157,58 @@ export function AplikasiSetting() {
     return () => window.removeEventListener('supabase-data-updated', handleDataUpdate);
   }, []);
 
-  // --- HANDLERS: SECTION 1 (PROFIL SEKOLAH) ---
+  // --- HANDLERS: SECTION 1 (PROFIL SEKOLAH & LOGO) ---
+  const handleSchoolLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Ukuran file logo terlalu besar. Harap pilih gambar di bawah 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Data = reader.result as string;
+        setProfil(prev => ({ ...prev, logoUrl: base64Data }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setProfil(prev => ({ ...prev, logoUrl: '' }));
+  };
+
   const handleSaveProfil = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setIsSavingProfil(true);
-    db.profilSekolah.update(profil);
+
+    const parts = [
+      profil.jalan,
+      profil.rtRw,
+      profil.dusun,
+      profil.desa,
+      profil.kecamatan ? (profil.kecamatan.toLowerCase().startsWith('kec') ? profil.kecamatan : `Kec. ${profil.kecamatan}`) : '',
+      profil.kabupaten,
+      profil.provinsi,
+      profil.kodePos
+    ].filter(Boolean);
+
+    const fullAlamat = parts.length > 0 ? parts.join(', ') : (profil.alamat || '');
+
+    const updatedProfil: ProfilSekolah = {
+      ...profil,
+      alamat: fullAlamat
+    };
+
+    db.profilSekolah.update(updatedProfil);
+    setProfil(updatedProfil);
+    syncRowToSupabase('profil_sekolah', updatedProfil);
+
     setTimeout(() => {
       setIsSavingProfil(false);
-      setSaveMessage('Pengaturan aplikasi & profil sekolah berhasil disimpan!');
-      setTimeout(() => setSaveMessage(''), 3000);
+      setSaveMessage('Profil sekolah & logo instansi berhasil disimpan dan disinkronkan!');
+      setTimeout(() => setSaveMessage(''), 3500);
+      window.dispatchEvent(new Event('school-profile-updated'));
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'profil_sekolah' } }));
     }, 400);
   };
@@ -614,24 +663,99 @@ export function AplikasiSetting() {
       )}
 
       {/* ========================================================================= */}
-      {/* 1. PALING UMUM: IDENTITAS & PERIODE AKADEMIK SEKOLAH                      */}
+      {/* 1. KELOLA PROFIL SEKOLAH & LOGO INSTANSI                                   */}
       {/* ========================================================================= */}
-      <form onSubmit={handleSaveProfil} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-m3-border dark:border-slate-800 shadow-sm space-y-4">
+      <form onSubmit={handleSaveProfil} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-m3-border dark:border-slate-800 shadow-sm space-y-6">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl">
-              <Globe className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-2xl">
+              <School className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white">1. Identitas &amp; Periode Akademik Sekolah</h3>
-              <p className="text-[11px] text-slate-500">Nama resmi sekolah, tahun pelajaran aktif, akreditasi, logo, dan alamat cetak laporan.</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">1. Kelola Profil Sekolah &amp; Logo Instansi</h3>
+              <p className="text-[11px] text-slate-500">Identitas resmi lembaga sekolah, logo kop laporan/rapor, periode akademik aktif, akreditasi, dan wilayah.</p>
             </div>
           </div>
-          <span className="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-full">
+          <span className="text-[10px] uppercase tracking-wider font-extrabold px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-full">
             Umum #1
           </span>
         </div>
 
+        {/* LOGO INSTANSI SEKOLAH (UPLOAD & URL INPUT) */}
+        <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <Image className="w-4 h-4 text-indigo-500" />
+              Logo Resmi Instansi Sekolah
+            </label>
+            <span className="text-[10px] text-slate-400">Digunakan untuk Header Rapor, Kartu Siswa, dan Kop Laporan</span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {profil.logoUrl ? (
+              <div className="relative group shrink-0">
+                <img
+                  src={profil.logoUrl}
+                  alt="Logo Sekolah"
+                  className="w-20 h-20 rounded-2xl object-cover border-2 border-indigo-500 shadow-md bg-white dark:bg-slate-900"
+                  referrerPolicy="no-referrer"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="absolute -top-1.5 -right-1.5 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full shadow cursor-pointer transition-colors"
+                  title="Hapus Logo"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <div className="w-20 h-20 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-md border-2 border-indigo-400 shrink-0">
+                {profil.namaSekolah ? profil.namaSekolah.substring(0, 2).toUpperCase() : 'SD'}
+              </div>
+            )}
+
+            <div className="flex-1 w-full space-y-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-sm">
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Upload Logo Baru</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSchoolLogoChange}
+                    className="hidden"
+                  />
+                </label>
+                {profil.logoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Hapus Logo
+                  </button>
+                )}
+                <span className="text-[11px] text-slate-400">Format PNG/JPG/WebP, disarankan maks 2MB</span>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                  Atau tautkan URL gambar logo online:
+                </label>
+                <input
+                  type="text"
+                  value={profil.logoUrl || ''}
+                  onChange={(e) => setProfil({ ...profil, logoUrl: e.target.value })}
+                  placeholder="https://contoh.com/logo-sekolah.png"
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* IDENTITAS SEKOLAH */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -668,7 +792,7 @@ export function AplikasiSetting() {
               value={profil.tahunPelajaran || '2025/2026'}
               onChange={(e) => setProfil({ ...profil, tahunPelajaran: e.target.value })}
               placeholder="Contoh: 2025/2026"
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
@@ -707,19 +831,23 @@ export function AplikasiSetting() {
               onChange={(e) => setProfil({ ...profil, akreditasi: e.target.value as any })}
               className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="A">Terakreditasi A (Unggul)</option>
+              <option value="A">Terakreditasi A (Sangat Baik / Unggul)</option>
               <option value="B">Terakreditasi B (Baik)</option>
-              <option value="C">Terakreditasi C</option>
+              <option value="C">Terakreditasi C (Cukup)</option>
               <option value="Belum Terakreditasi">Belum Terakreditasi</option>
             </select>
           </div>
         </div>
 
-        {/* Detail Alamat Lokasi Sekolah */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-          <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">Detail Alamat Wilayah &amp; Cetak Laporan PDF</h4>
+        {/* DETAIL ALAMAT WILAYAH SEKOLAH */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="w-4 h-4 text-indigo-500" />
+            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Detail Alamat Wilayah &amp; Kop Surat Laporan PDF</h4>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Jalan / No. Bangunan</label>
               <input
                 type="text"
@@ -730,12 +858,42 @@ export function AplikasiSetting() {
               />
             </div>
             <div>
+              <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">RT / RW</label>
+              <input
+                type="text"
+                value={profil.rtRw || ''}
+                onChange={(e) => setProfil({ ...profil, rtRw: e.target.value })}
+                placeholder="RT 02 / RW 04"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Dusun / Lingkungan</label>
+              <input
+                type="text"
+                value={profil.dusun || ''}
+                onChange={(e) => setProfil({ ...profil, dusun: e.target.value })}
+                placeholder="Dusun Krajan"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Desa / Kelurahan</label>
+              <input
+                type="text"
+                value={profil.desa || ''}
+                onChange={(e) => setProfil({ ...profil, desa: e.target.value })}
+                placeholder="Desa Sukamaju"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs"
+              />
+            </div>
+            <div>
               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Kecamatan</label>
               <input
                 type="text"
                 value={profil.kecamatan || ''}
                 onChange={(e) => setProfil({ ...profil, kecamatan: e.target.value })}
-                placeholder="Sukamaju"
+                placeholder="Kec. Cibinong"
                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs"
               />
             </div>
@@ -745,7 +903,7 @@ export function AplikasiSetting() {
                 type="text"
                 value={profil.kabupaten || ''}
                 onChange={(e) => setProfil({ ...profil, kabupaten: e.target.value })}
-                placeholder="Bandung / Kota Bandung"
+                placeholder="Kabupaten Bogor"
                 className="w-full bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-xl px-3 py-2 text-xs font-bold text-indigo-900 dark:text-indigo-200"
               />
             </div>
@@ -763,7 +921,7 @@ export function AplikasiSetting() {
                   type="text"
                   value={profil.kodePos || ''}
                   onChange={(e) => setProfil({ ...profil, kodePos: e.target.value })}
-                  placeholder="40123"
+                  placeholder="16911"
                   className="w-1/3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-xs"
                 />
               </div>
@@ -775,10 +933,10 @@ export function AplikasiSetting() {
           <button
             type="submit"
             disabled={isSavingProfil}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-5 py-2.5 rounded-2xl flex items-center gap-2 cursor-pointer transition-all shadow-md"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-2xl flex items-center gap-2 cursor-pointer transition-all shadow-md"
           >
             <Save className="w-4 h-4" />
-            {isSavingProfil ? 'Menyimpan...' : 'Simpan Profil Sekolah'}
+            {isSavingProfil ? 'Menyimpan...' : 'Simpan Profil & Logo Sekolah'}
           </button>
         </div>
       </form>
@@ -1164,17 +1322,17 @@ export function AplikasiSetting() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 5. DATABASE & SINKRONISASI SUPABASE                                       */}
+      {/* 5. DATABASE & SINKRONISASI                                                */}
       {/* ========================================================================= */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-m3-border dark:border-slate-800 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-m3-border dark:border-slate-800 shadow-sm space-y-6">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 rounded-xl">
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white">5. Database &amp; Sinkronisasi Supabase</h3>
-              <p className="text-[11px] text-slate-500">Koneksi PostgreSQL Supabase, sinkronkan data secara langsung, serta ekspor/impor cadangan (.JSON).</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">5. Database &amp; Sinkronisasi</h3>
+              <p className="text-[11px] text-slate-500">Pusat integrasi multi-cloud (Supabase &amp; Firebase), realtime sinkronisasi, serta pencadangan data sekolah.</p>
             </div>
           </div>
           <span className="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400 rounded-full">
@@ -1182,68 +1340,50 @@ export function AplikasiSetting() {
           </span>
         </div>
 
-        {/* Firebase Cloud Section - Rendered directly */}
+        {/* 1. Supabase Cloud Integration Module */}
+        <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 space-y-4">
+          <SupabaseSettingsTab />
+        </div>
+
+        {/* 2. Firebase Cloud Integration Module */}
         <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 rounded-2xl border border-amber-200 dark:border-amber-900/40 space-y-4">
           <FirebaseSettingsTab />
         </div>
 
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+        {/* 3. Global Local Backup & Maintenance Section */}
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Status Database Supabase Cloud:</span>
-            {isSupabaseConfigured ? (
-              <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold rounded-full flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Terkoneksi &amp; Aktif
-              </span>
-            ) : (
-              <span className="px-2.5 py-1 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-extrabold rounded-full flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> Mode Database Lokal (Offline)
-              </span>
-            )}
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              Cadangan &amp; Pemeliharaan Database Lokal:
+            </span>
+            <span className="text-[11px] text-slate-500">
+              Format Standar .JSON
+            </span>
           </div>
-          <p className="text-[11px] text-slate-500">
-            URL Endpoint: {supabaseConfig.url || 'Belum dikonfigurasi di environment'}
-          </p>
-        </div>
 
-        {syncStatus && (
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 text-xs rounded-xl font-medium">
-            {syncStatus}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-3">
-          {isSupabaseConfigured && (
+          <div className="flex flex-wrap gap-3">
             <button
-              onClick={handleForceSyncSupabase}
-              disabled={isSyncing}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+              onClick={handleBackupJSON}
+              className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 cursor-pointer transition-all shadow-sm"
             >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              Sinkronkan dengan Supabase Sekarang
+              <Download className="w-4 h-4" />
+              Cadangkan Database Lokal (.JSON)
             </button>
-          )}
 
-          <button
-            onClick={handleBackupJSON}
-            className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 cursor-pointer transition-all shadow-sm"
-          >
-            <Download className="w-4 h-4" />
-            Cadangkan Database Lokal (.JSON)
-          </button>
+            <label className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 cursor-pointer transition-all shadow-sm border border-slate-300 dark:border-slate-700">
+              <Upload className="w-4 h-4" />
+              Pulihkan Database (.JSON)
+              <input type="file" accept=".json" onChange={handleRestoreJSON} className="hidden" />
+            </label>
 
-          <label className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 cursor-pointer transition-all shadow-sm border border-slate-300 dark:border-slate-700">
-            <Upload className="w-4 h-4" />
-            Pulihkan Database (.JSON)
-            <input type="file" accept=".json" onChange={handleRestoreJSON} className="hidden" />
-          </label>
-
-          <button
-            onClick={handleCleanAppCacheAndLogs}
-            className="bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 cursor-pointer transition-all shadow-sm border border-rose-200 dark:border-rose-800/50"
-          >
-            <Trash2 className="w-4 h-4" />
-            Bersihkan Cache &amp; Log Chat App (Optimasi CPU)
-          </button>
+            <button
+              onClick={handleCleanAppCacheAndLogs}
+              className="bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 cursor-pointer transition-all shadow-sm border border-rose-200 dark:border-rose-800/50"
+            >
+              <Trash2 className="w-4 h-4" />
+              Bersihkan Cache &amp; Log Chat App (Optimasi CPU)
+            </button>
+          </div>
         </div>
 
         {cacheClearMsg && (
@@ -1273,16 +1413,39 @@ export function AplikasiSetting() {
           </span>
         </div>
 
-        <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-            Endpoint Webhook Server Nilai Kuis (POST):
-          </label>
-          <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-xs text-sky-600 dark:text-sky-400 font-bold select-all border border-slate-300 dark:border-slate-700">
-            {window.location.origin}/api/webhook/google-form
+        <div className="space-y-4">
+          <div className="p-4 bg-sky-50/60 dark:bg-sky-950/30 rounded-2xl border border-sky-100 dark:border-sky-900/50 space-y-2 text-xs text-slate-700 dark:text-slate-300">
+            <div className="font-bold text-sky-800 dark:text-sky-300 text-xs flex items-center gap-1.5">
+              <Server className="w-4 h-4" /> Apa itu Webhook Integrasi Google Form?
+            </div>
+            <p className="leading-relaxed">
+              <strong>Webhook</strong> ini berfungsi sebagai jembatan otomatis (<em>real-time bridge</em>) antara <strong>Google Form / Google Sheet</strong> tugas kuis dan sistem aplikasi. Begitu siswa selesai mengerjakan kuis di Google Form dan menekan tombol <strong>Submit</strong>, Google Apps Script akan langsung menembakkan nilai ke server ini tanpa perlu input manual.
+            </p>
           </div>
-          <p className="text-[11px] text-slate-500">
-            Pemicu <code>onFormSubmit</code> di Google Apps Script akan mengirimkan nilai kuis secara otomatis ke endpoint di atas.
-          </p>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+              Endpoint Webhook Server Nilai Kuis (POST):
+            </label>
+            <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-xs text-sky-600 dark:text-sky-400 font-bold select-all border border-slate-300 dark:border-slate-700 break-all">
+              {window.location.origin}/api/webhook/google-form
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Pemicu <code>onFormSubmit</code> di Google Apps Script akan mengirimkan nilai kuis secara otomatis ke endpoint di atas.
+            </p>
+          </div>
+
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3 text-xs">
+            <div className="font-bold text-slate-800 dark:text-slate-200">
+              Alur Kerja Penyerapan Nilai Otomatis:
+            </div>
+            <ol className="list-decimal list-inside space-y-1.5 text-slate-600 dark:text-slate-400 leading-relaxed">
+              <li>Guru membuat kuis di <strong>Google Form</strong> dan menghubungkannya ke <strong>Google Sheet</strong> respon.</li>
+              <li>Pada Google Sheet tersebut, buka menu <strong>Ekstensi &gt; Apps Script</strong> dan pasang skrip penembak Webhook.</li>
+              <li>Saat siswa submit kuis, skrip membaca <em>Email/NISN</em>, <em>ID Tugas</em>, dan <em>Skor Nilai</em>.</li>
+              <li>Server memvalidasi data dan otomatis menyimpannya ke tabel <code>tugas_siswa</code> dan <code>penilaian</code> (Asesmen) di database cloud (Supabase/Firebase).</li>
+            </ol>
+          </div>
         </div>
       </div>
 

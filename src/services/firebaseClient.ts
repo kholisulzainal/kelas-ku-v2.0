@@ -11,15 +11,26 @@ export interface FirebaseCustomConfig {
 }
 
 const FIREBASE_CONFIG_STORAGE_KEY = 'custom_firebase_config';
+const FIREBASE_DISCONNECTED_KEY = 'firebase_disconnected';
 
 let appInstance: FirebaseApp | null = null;
 let firestoreInstance: Firestore | null = null;
 
+export function isFirebaseDisconnected(): boolean {
+  return localStorage.getItem(FIREBASE_DISCONNECTED_KEY) === 'true';
+}
+
 export function getCustomFirebaseConfig(): FirebaseCustomConfig | null {
+  if (isFirebaseDisconnected()) {
+    return null;
+  }
   try {
     const saved = localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.projectId) {
+        return parsed;
+      }
     }
   } catch (e) {
     console.error('Error loading custom firebase config:', e);
@@ -54,16 +65,27 @@ export async function saveCustomFirebaseConfig(config: FirebaseCustomConfig): Pr
     storageBucket: (config.storageBucket || '').trim(),
     messagingSenderId: (config.messagingSenderId || '').trim()
   };
-  localStorage.setItem(FIREBASE_CONFIG_STORAGE_KEY, JSON.stringify(cleanConfig));
+  
+  if (cleanConfig.projectId) {
+    localStorage.removeItem(FIREBASE_DISCONNECTED_KEY);
+    localStorage.setItem(FIREBASE_CONFIG_STORAGE_KEY, JSON.stringify(cleanConfig));
+  } else {
+    localStorage.removeItem(FIREBASE_CONFIG_STORAGE_KEY);
+    localStorage.setItem(FIREBASE_DISCONNECTED_KEY, 'true');
+  }
   await resetFirebaseInstances();
 }
 
 export async function clearCustomFirebaseConfig(): Promise<void> {
   localStorage.removeItem(FIREBASE_CONFIG_STORAGE_KEY);
+  localStorage.setItem(FIREBASE_DISCONNECTED_KEY, 'true');
   await resetFirebaseInstances();
 }
 
 export function getFirebaseApp(): FirebaseApp | null {
+  if (isFirebaseDisconnected()) {
+    return null;
+  }
   if (appInstance) {
     return appInstance;
   }
@@ -71,23 +93,22 @@ export function getFirebaseApp(): FirebaseApp | null {
   const existingApps = getApps();
   
   // Prefer custom user config if present
-  const config = customConfig || {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || ''
-  };
+  const config = customConfig || (
+    import.meta.env.VITE_FIREBASE_PROJECT_ID ? {
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+      appId: import.meta.env.VITE_FIREBASE_APP_ID || ''
+    } : null
+  );
 
-  const cleanProjectId = (config.projectId || '').trim();
-  if (!cleanProjectId) {
-    if (existingApps.length > 0) {
-      appInstance = existingApps[0];
-      return appInstance;
-    }
+  if (!config || !config.projectId || !config.projectId.trim()) {
     return null;
   }
+
+  const cleanProjectId = config.projectId.trim();
 
   // Normalize apiKey
   let sanitizedApiKey = config.apiKey ? config.apiKey.trim() : '';

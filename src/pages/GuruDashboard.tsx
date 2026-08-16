@@ -111,6 +111,7 @@ const loadImageAsDataUrl = (url: string | undefined): Promise<string | null> => 
 
 interface GuruDashboardProps {
   activeTab: string;
+  setActiveTab?: (tab: string) => void;
 }
 
 const romanToNum = (roman: string): number => {
@@ -149,7 +150,7 @@ const sortClasses = (classes: string[]): string[] => {
   });
 };
 
-export function GuruDashboard({ activeTab }: GuruDashboardProps) {
+export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   // Database States
   const [sekolah, setSekolah] = useState<ProfilSekolah>(db.profilSekolah.get());
   const [gurus, setGurus] = useState<Guru[]>(db.guru.getAll());
@@ -3882,236 +3883,135 @@ export function GuruDashboard({ activeTab }: GuruDashboardProps) {
     <div id="guru_dashboard_container" className="space-y-6">
       {/* 1. PROFIL SEKOLAH */}
       {activeTab === 'profil_sekolah' && (
-        <div id="school_profile_view" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: School Profile Overview & Structured Address Card View */}
-          <div className={`${isOperator ? 'lg:col-span-1' : 'lg:col-span-3 max-w-2xl mx-auto w-full'} bg-white dark:bg-slate-900 p-6 rounded-3xl border border-m3-border dark:border-slate-800/80 shadow-sm flex flex-col items-center text-center`}>
-            {sekolah.logoUrl ? (
-              <img
-                src={sekolah.logoUrl}
-                alt="Logo Sekolah"
-                className="w-28 h-28 rounded-3xl object-cover shadow-sm border-4 border-m3-purple/20 mb-3"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div
-              style={{ display: sekolah.logoUrl ? 'none' : 'flex' }}
-              className="w-28 h-28 rounded-3xl bg-m3-purple flex items-center justify-center text-white text-3xl font-bold shadow-sm border-4 border-m3-purple/20 mb-3"
-            >
-              {sekolah.namaSekolah ? sekolah.namaSekolah.substring(0, 2).toUpperCase() : 'SD'}
+        <div id="school_profile_view" className="max-w-4xl mx-auto space-y-6">
+          {/* School Profile Overview & Structured Address Card View */}
+          <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-m3-border dark:border-slate-800/80 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left border-b border-m3-border dark:border-slate-800 pb-6">
+              {sekolah.logoUrl ? (
+                <img
+                  src={sekolah.logoUrl}
+                  alt="Logo Sekolah"
+                  className="w-28 h-28 rounded-3xl object-cover shadow-sm border-4 border-m3-purple/20 shrink-0"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div
+                style={{ display: sekolah.logoUrl ? 'none' : 'flex' }}
+                className="w-28 h-28 rounded-3xl bg-m3-purple flex items-center justify-center text-white text-3xl font-bold shadow-sm border-4 border-m3-purple/20 shrink-0"
+              >
+                {sekolah.namaSekolah ? sekolah.namaSekolah.substring(0, 2).toUpperCase() : 'SD'}
+              </div>
+
+              <div className="space-y-2 flex-1">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <span className="px-3 py-1 bg-m3-lavender dark:bg-indigo-950/40 text-m3-purple dark:text-indigo-400 font-bold text-xs rounded-full">
+                    Akreditasi {sekolah.akreditasi || 'A'}
+                  </span>
+                  <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-full flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>TP {sekolah.tahunPelajaran || '2025/2026'}</span>
+                  </span>
+                </div>
+                <h2 className="text-xl md:text-2xl font-extrabold text-slate-800 dark:text-white leading-tight">
+                  {sekolah.namaSekolah || 'Sekolah Dasar'}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  NPSN: <span className="font-semibold text-slate-700 dark:text-slate-200">{sekolah.npsn || '-'}</span> | Kepala Sekolah: <span className="font-semibold text-slate-700 dark:text-slate-200">{sekolah.kepalaSekolah || '-'}</span>
+                </p>
+              </div>
+
+              {isOperator && setActiveTab && (
+                <div className="shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('aplikasi_setting')}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span>Ubah di Pengaturan Aplikasi</span>
+                  </button>
+                </div>
+              )}
             </div>
 
-            <h3 className="text-lg font-extrabold text-slate-800 dark:text-white leading-snug">{sekolah.namaSekolah}</h3>
-            
-            <div className="flex items-center gap-2 mt-2 flex-wrap justify-center">
-              <span className="px-3 py-1 bg-m3-lavender dark:bg-indigo-950/40 text-m3-purple dark:text-indigo-400 font-bold text-xs rounded-full">
-                Akreditasi {sekolah.akreditasi}
-              </span>
-              <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-full flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>TP {sekolah.tahunPelajaran || '2025/2026'}</span>
-              </span>
-            </div>
-
-            <div className="w-full mt-5 space-y-2.5 border-t border-m3-border dark:border-slate-800 pt-5 text-xs text-left text-slate-600 dark:text-slate-400">
-              <p><strong>NPSN:</strong> {sekolah.npsn}</p>
-              <p><strong>Kepala Sekolah:</strong> {sekolah.kepalaSekolah}</p>
-              <p><strong>NIP Kepala Sekolah:</strong> {sekolah.nipKepalaSekolah}</p>
+            {/* General Info Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1">
+                <span className="text-[11px] text-slate-400 block font-medium">Nomor Pokok Sekolah (NPSN)</span>
+                <span className="font-bold text-slate-800 dark:text-slate-100 text-sm">{sekolah.npsn || '-'}</span>
+              </div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1">
+                <span className="text-[11px] text-slate-400 block font-medium">Kepala Sekolah</span>
+                <span className="font-bold text-slate-800 dark:text-slate-100 text-sm">{sekolah.kepalaSekolah || '-'}</span>
+                <span className="text-[10px] text-slate-400 block">NIP: {sekolah.nipKepalaSekolah || '-'}</span>
+              </div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1">
+                <span className="text-[11px] text-slate-400 block font-medium">Tahun Pelajaran & Status</span>
+                <span className="font-bold text-indigo-600 dark:text-indigo-400 text-sm">{sekolah.tahunPelajaran || '2025/2026'}</span>
+                <span className="text-[10px] text-slate-400 block">Akreditasi {sekolah.akreditasi || 'A'}</span>
+              </div>
             </div>
 
             {/* Structured Alamat & Wilayah Sekolah */}
-            <div className="w-full mt-6 pt-5 border-t border-m3-border dark:border-slate-800 text-left space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-indigo-500" />
-                  Detail Alamat & Wilayah
-                </h4>
-              </div>
+            <div className="space-y-3 pt-2">
+              <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-indigo-500" />
+                Detail Alamat & Wilayah Instansi
+              </h4>
 
-              <div className="space-y-2 text-xs text-slate-700 dark:text-slate-300">
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800 flex items-start gap-2">
+              <div className="space-y-2.5 text-xs text-slate-700 dark:text-slate-300">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-start gap-2.5">
                   <MapPin className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
                   <div>
                     <span className="text-[10px] text-slate-400 block font-medium">Jalan / RT-RW</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
                       {sekolah.jalan || '-'} {sekolah.rtRw ? `(${sekolah.rtRw})` : ''}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <span className="text-[10px] text-slate-400 block font-medium">Dusun</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{sekolah.dusun || '-'}</span>
                   </div>
-                  <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <span className="text-[10px] text-slate-400 block font-medium">Desa / Kelurahan</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{sekolah.desa || '-'}</span>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <span className="text-[10px] text-slate-400 block font-medium">Kecamatan</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{sekolah.kecamatan || '-'}</span>
                   </div>
-                  <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/40">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">Kabupaten / Kota</span>
-                    </div>
-                    <span className="font-black text-indigo-900 dark:text-indigo-200 block mt-0.5">{sekolah.kabupaten || '-'}</span>
+                  <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl border border-indigo-100 dark:border-indigo-900/40">
+                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block">Kabupaten / Kota</span>
+                    <span className="font-black text-indigo-900 dark:text-indigo-200 block">{sekolah.kabupaten || '-'}</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <span className="text-[10px] text-slate-400 block font-medium">Provinsi</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{sekolah.provinsi || '-'}</span>
                   </div>
-                  <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <span className="text-[10px] text-slate-400 block font-medium">Kode Pos</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{sekolah.kodePos || '-'}</span>
                   </div>
                 </div>
 
-                <div className="p-2.5 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                  <span className="font-bold text-[10px] text-slate-400 block mb-0.5">Deskripsi Alamat Lengkap:</span>
-                  "{sekolah.alamat}"
+                <div className="p-3 bg-slate-100 dark:bg-slate-800/80 rounded-2xl text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <span className="font-bold text-[10px] text-slate-400 block mb-0.5">Alamat Lengkap Cetak Rapor:</span>
+                  "{sekolah.alamat || '-'}"
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Right Column: Manage School Form (Hanya Operator) */}
-          {isOperator && (
-            <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-m3-border dark:border-slate-800/80 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
-                <School className="w-5 h-5 text-m3-purple" />
-                Kelola Profil Sekolah
-              </h3>
-              <form onSubmit={handleSubmit(onUpdateSchool)} className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Nama Instansi Sekolah</label>
-                    <input
-                      type="text"
-                      disabled={!isCurrentGuruWaliKelas}
-                      defaultValue={sekolah.namaSekolah}
-                      {...register('namaSekolah', { required: true })}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">NPSN</label>
-                    <input
-                      type="text"
-                      disabled={!isCurrentGuruWaliKelas}
-                      defaultValue={sekolah.npsn}
-                      {...register('npsn', { required: true })}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Nama Kepala Sekolah</label>
-                    <input
-                      type="text"
-                      disabled={!isCurrentGuruWaliKelas}
-                      defaultValue={sekolah.kepalaSekolah}
-                      {...register('kepalaSekolah', { required: true })}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">NIP Kepala Sekolah</label>
-                    <input
-                      type="text"
-                      disabled={!isCurrentGuruWaliKelas}
-                      defaultValue={sekolah.nipKepalaSekolah}
-                      {...register('nipKepalaSekolah', { required: true })}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Akreditasi</label>
-                    <select
-                      disabled={!isCurrentGuruWaliKelas}
-                      defaultValue={sekolah.akreditasi}
-                      {...register('akreditasi')}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
-                    >
-                      <option value="A">Sangat Baik (A)</option>
-                      <option value="B">Baik (B)</option>
-                      <option value="C">Cukup (C)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Tahun Pelajaran Aktif</label>
-                    <input
-                      type="text"
-                      disabled={!isCurrentGuruWaliKelas}
-                      defaultValue={sekolah.tahunPelajaran || '2025/2026'}
-                      placeholder="Contoh: 2025/2026"
-                      {...register('tahunPelajaran')}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-m3-purple dark:text-indigo-400 disabled:opacity-75 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 space-y-3 bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80">
-                    <div className="border-b border-slate-100 dark:border-slate-800 pb-1.5">
-                      <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Logo Instansi Sekolah</label>
-                    </div>
-                    
-                    <div className="flex items-center gap-4">
-                      {watchLogoUrl || sekolah.logoUrl ? (
-                        <img src={watchLogoUrl || sekolah.logoUrl} alt="Preview Logo" className="w-16 h-16 rounded-2xl object-cover border-2 border-m3-purple shadow-sm shrink-0" referrerPolicy="no-referrer" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center border-2 border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold text-sm shrink-0">SD</div>
-                      )}
-                      {isOperator ? (
-                        <div className="flex-1 space-y-2">
-                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs">
-                            <Camera className="w-3.5 h-3.5" />
-                            <span>Upload Logo Baru</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              disabled={!isOperator}
-                              onChange={handleSchoolLogoChange}
-                              className="hidden"
-                            />
-                          </label>
-                          <div className="space-y-0.5">
-                            <input
-                              type="text"
-                              placeholder="Atau tempel URL gambar di sini..."
-                              disabled={!isOperator}
-                              {...register('logoUrl')}
-                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1 text-xs focus:ring-2 focus:ring-m3-purple/20 outline-none text-slate-800 dark:text-white"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-slate-400 font-medium">Pengunggahan logo hanya dapat diakses oleh Administrator/Operator.</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  id="save_school_btn"
-                  className="bg-m3-purple text-white font-bold text-sm px-6 py-2.5 rounded-full cursor-pointer shadow-sm hover:bg-m3-purple-dark transition-all"
-                >
-                  Simpan Perubahan
-                </button>
-              </form>
-            </div>
-          )}
         </div>
       )}
 
