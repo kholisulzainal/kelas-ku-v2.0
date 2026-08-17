@@ -348,12 +348,6 @@ export const db = {
     },
     save: (items: Guru[]) => {
       localStorage.setItem('guru', JSON.stringify(items));
-      if (Array.isArray(items)) {
-        items.forEach(item => {
-          syncRowToSupabase('guru', item);
-          syncRowToFirebase('guru', item.id, item);
-        });
-      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'guru' } }));
     },
     upsert: (item: Guru) => {
@@ -388,12 +382,6 @@ export const db = {
     },
     save: (items: Siswa[]) => {
       localStorage.setItem('siswa', JSON.stringify(items));
-      if (Array.isArray(items)) {
-        items.forEach(item => {
-          syncRowToSupabase('siswa', item);
-          syncRowToFirebase('siswa', item.id, item);
-        });
-      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'siswa' } }));
     },
     upsert: (item: Siswa) => {
@@ -427,12 +415,6 @@ export const db = {
     },
     save: (items: OrangTua[]) => {
       localStorage.setItem('orang_tua', JSON.stringify(items));
-      if (Array.isArray(items)) {
-        items.forEach(item => {
-          syncRowToSupabase('orang_tua', item);
-          syncRowToFirebase('orang_tua', item.id, item);
-        });
-      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'orang_tua' } }));
     },
     upsert: (item: OrangTua) => {
@@ -491,12 +473,6 @@ export const db = {
     },
     save: (items: MataPelajaran[]) => {
       localStorage.setItem('mata_pelajaran', JSON.stringify(items));
-      if (Array.isArray(items)) {
-        items.forEach(item => {
-          syncRowToSupabase('mata_pelajaran', item);
-          syncRowToFirebase('mata_pelajaran', item.id, item);
-        });
-      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'mata_pelajaran' } }));
     },
     upsert: (item: MataPelajaran) => {
@@ -532,12 +508,6 @@ export const db = {
     },
     save: (items: JadwalPelajaran[]) => {
       localStorage.setItem('jadwal_pelajaran', JSON.stringify(items));
-      if (Array.isArray(items)) {
-        items.forEach(item => {
-          syncRowToSupabase('jadwal_pelajaran', item);
-          syncRowToFirebase('jadwal_pelajaran', item.id, item);
-        });
-      }
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'jadwal_pelajaran' } }));
     },
     upsert: (item: JadwalPelajaran) => {
