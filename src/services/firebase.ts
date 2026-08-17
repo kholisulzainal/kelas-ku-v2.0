@@ -273,7 +273,14 @@ export async function pushAllToFirebase(): Promise<{ success: boolean; details: 
     asesmen: db.asesmen.getAll(),
     penilaian: db.penilaian.getAll(),
     temuan_khusus: db.temuanKhusus.getAll(),
-    buku_digital: db.bukuDigital.getAll()
+    buku_digital: db.bukuDigital.getAll(),
+    operator_credentials: [{
+      id: 'op-001',
+      username: db.operatorCredentials.get().username,
+      password: db.operatorCredentials.get().password,
+      nama_operator: 'Operator Utama SD',
+      updated_at: new Date().toISOString()
+    }]
   };
 
   const details: Record<string, number> = {};
@@ -387,6 +394,53 @@ function parseFirestoreRestValue(val: any): any {
 }
 
 /**
+ * Fetch operator credentials directly from Firebase Firestore
+ */
+export async function getOperatorCredentialsFromFirebase(): Promise<{ username: string; password: string; namaOperator?: string } | null> {
+  const firestore = getDb();
+  const customConfig = getCustomFirebaseConfig();
+  const projectId = customConfig?.projectId || import.meta.env.VITE_FIREBASE_PROJECT_ID || '';
+  const apiKey = customConfig?.apiKey || import.meta.env.VITE_FIREBASE_API_KEY || '';
+
+  // 1. Try SDK getDoc
+  if (firestore) {
+    try {
+      const docRef = doc(firestore, 'operator_credentials', 'op-001');
+      const docSnap = await withTimeout(getDoc(docRef), 3500, 'Timeout getting operator credential');
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+          username: data.username || 'operator',
+          password: data.password || 'operator123',
+          namaOperator: data.nama_operator || 'Operator Utama SD'
+        };
+      }
+    } catch (e) {
+      console.warn('[Firebase] SDK operator fetch warning:', e);
+    }
+  }
+
+  // 2. Try REST API fallback
+  if (projectId) {
+    try {
+      const restItems = await fetchCollectionViaRest('operator_credentials', projectId, apiKey);
+      if (restItems.length > 0) {
+        const item = restItems[0];
+        return {
+          username: item.username || 'operator',
+          password: item.password || 'operator123',
+          namaOperator: item.nama_operator || 'Operator Utama SD'
+        };
+      }
+    } catch (e) {
+      console.warn('[Firebase] REST operator fetch warning:', e);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Fetch a collection via Firestore REST API as a robust fallback
  */
 async function fetchCollectionViaRest(colName: string, projectId: string, apiKey?: string): Promise<any[]> {
@@ -441,7 +495,8 @@ export async function pullAllFromFirebase(): Promise<{ success: boolean; details
     'asesmen',
     'penilaian',
     'temuan_khusus',
-    'buku_digital'
+    'buku_digital',
+    'operator_credentials'
   ];
 
   const details: Record<string, number> = {};
@@ -544,6 +599,8 @@ export async function pullAllFromFirebase(): Promise<{ success: boolean; details
             localStorage.setItem('temuan_khusus', JSON.stringify(items));
           } else if (colName === 'buku_digital') {
             localStorage.setItem('buku_digital', JSON.stringify(items));
+          } else if (colName === 'operator_credentials') {
+            localStorage.setItem('operator_credentials', JSON.stringify(items));
           }
         }
       }

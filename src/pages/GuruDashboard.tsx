@@ -43,7 +43,9 @@ import {
   ChevronUp,
   Code,
   RefreshCw,
-  Zap
+  Zap,
+  ShieldCheck,
+  Save
 } from 'lucide-react';
 import { GoogleAppsScriptModal } from '../components/GoogleAppsScriptModal';
 import { AplikasiSetting } from '../components/AplikasiSetting';
@@ -4011,6 +4013,71 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                 </div>
               </div>
             </div>
+
+            {/* Operator Credentials Management Card */}
+            {isOperator && (
+              <div className="pt-4 border-t border-m3-border dark:border-slate-800">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-2xl">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-white">Kredensial Login Operator Utama</h4>
+                      <p className="text-xs text-slate-500">Tersinkronisasi otomatis ke Database Supabase / Firebase</p>
+                    </div>
+                  </div>
+                </div>
+
+                {opSuccessMsg && (
+                  <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl text-xs text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{opSuccessMsg}</span>
+                  </div>
+                )}
+
+                {opErrorMsg && (
+                  <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/40 rounded-2xl text-xs text-rose-700 dark:text-rose-300 font-semibold flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>{opErrorMsg}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleUpdateOperatorCredentials} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Username Operator</label>
+                    <input
+                      type="text"
+                      value={opUsername}
+                      onChange={(e) => setOpUsername(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500"
+                      placeholder="Username operator..."
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Password Operator Baru</label>
+                    <input
+                      type="password"
+                      value={opPassword}
+                      onChange={(e) => setOpPassword(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500"
+                      placeholder="Password baru..."
+                      required
+                    />
+                  </div>
+                  <div>
+                    <button
+                      type="submit"
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Simpan Kredensial</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}

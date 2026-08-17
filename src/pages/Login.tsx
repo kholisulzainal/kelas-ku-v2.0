@@ -3,6 +3,7 @@ import { db } from '../services/db';
 import { UserRole } from '../types';
 import { ShieldAlert, GraduationCap, Users, Lock, User, Eye, EyeOff, Mail, ArrowLeft, CheckCircle2, AlertCircle, Loader2, Settings } from 'lucide-react';
 import { getSupabaseClient, getOperatorCredentialsFromSupabase } from '../services/supabase';
+import { getOperatorCredentialsFromFirebase } from '../services/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LoginProps {
@@ -26,15 +27,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [school, setSchool] = useState<any>(db.profilSekolah.get());
 
   React.useEffect(() => {
-    // Otomatis bersihkan cache browser saat masuk halaman login
-    if (typeof window !== 'undefined' && 'caches' in window) {
-      caches.keys().then((names) => {
-        for (const name of names) {
-          caches.delete(name).catch(err => console.error('Gagal hapus cache:', err));
-        }
-      }).catch(err => console.error('Gagal membaca daftar cache:', err));
-    }
-
     const flag = localStorage.getItem('auto_logged_out_flag');
     if (flag === 'true') {
       setShowAutoLogoutMessage(true);
@@ -113,6 +105,20 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
       if (!isValid) {
         try {
+          // 1. Check live Firestore database
+          const fbOp = await getOperatorCredentialsFromFirebase();
+          if (fbOp && cleanUsername === fbOp.username.toLowerCase() && cleanPassword === fbOp.password) {
+            isValid = true;
+            db.operatorCredentials.update(fbOp.username, fbOp.password);
+          }
+        } catch (e) {
+          console.warn('Operator Firebase login check notice:', e);
+        }
+      }
+
+      if (!isValid) {
+        try {
+          // 2. Check live Supabase database
           const spOp = await getOperatorCredentialsFromSupabase();
           if (spOp && cleanUsername === spOp.username.toLowerCase() && cleanPassword === spOp.password) {
             isValid = true;
