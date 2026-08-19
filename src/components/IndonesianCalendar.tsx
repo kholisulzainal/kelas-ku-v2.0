@@ -231,10 +231,14 @@ export function IndonesianCalendar({ currentRole, currentUserId }: IndonesianCal
     const tgs = db.daftarTugas.getAll();
     const subjs = db.mataPelajaran.getAll();
 
-    const confirmed = window.confirm(
-      `Apakah Anda yakin ingin mengekspor ${tgs.length} tugas sekolah ke Google Kalender Anda?`
-    );
-    if (!confirmed) return;
+    if (tgs.length === 0) {
+      setCalendarAlert({
+        title: 'Tidak Ada Tugas',
+        message: 'Belum ada tugas sekolah yang terdaftar untuk diekspor ke Google Kalender.',
+        type: 'warning'
+      });
+      return;
+    }
 
     setIsExporting(true);
     try {

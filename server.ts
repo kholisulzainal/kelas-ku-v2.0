@@ -138,25 +138,30 @@ function parseScoreText(scoreText: any): number {
 }
 
 // Get Supabase Admin / Service Client or Fallback
+function isSupabaseConfiguredServer(customUrl?: string, customKey?: string): boolean {
+  const url = customUrl || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = customKey || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
+  return Boolean(url && !url.includes('placeholder') && url.startsWith('http') && key && !key.includes('placeholder'));
+}
+
 function getAdminSupabaseClient(customUrl?: string, customKey?: string) {
   const supabaseUrl = customUrl || 
                       process.env.VITE_SUPABASE_URL || 
                       process.env.NEXT_PUBLIC_SUPABASE_URL || 
                       'https://placeholder.supabase.co';
   const serviceKey = customKey || 
-                     process.env.SUPABASE_SERVICE_ROLE_KEY || 
-                     process.env.VITE_SUPABASE_ANON_KEY || 
-                     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-                     'placeholder-service-key';
+                      process.env.SUPABASE_SERVICE_ROLE_KEY || 
+                      process.env.VITE_SUPABASE_ANON_KEY || 
+                      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+                      'placeholder-service-key';
   
   return createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false }
   });
 }
 
-async function startServer() {
+export function createApiApp() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
 
   // Middleware to parse JSON payloads with high limit for document uploads & long AI chat histories
   app.use(express.json({ limit: '50mb' }));
@@ -223,6 +228,26 @@ async function startServer() {
 
       const customUrl = req.body?.supabase_url || (req.headers['x-supabase-url'] as string);
       const customKey = req.body?.supabase_key || (req.headers['x-supabase-key'] as string);
+
+      if (!isSupabaseConfiguredServer(customUrl, customKey)) {
+        const nowIso = getWibIsoString();
+        const fallbackStudentId = cleanEmail ? cleanEmail.split('@')[0] : (cleanNisn || 'siswa-1');
+        return res.status(200).json({
+          success: true,
+          message: 'Status pengerjaan & nilai tugas siswa berhasil diterima oleh Webhook (Mode lokal/simulasi aktif).',
+          data: {
+            assignment_id: cleanAssignmentId,
+            assignment_title: cleanAssignmentId,
+            student_id: fallbackStudentId,
+            student_email: cleanEmail,
+            student_name: cleanName || cleanEmail,
+            score: parsedScore,
+            status: 'SELESAI',
+            submitted_at: nowIso
+          }
+        });
+      }
+
       const supabase = getAdminSupabaseClient(customUrl, customKey);
       let studentId: string | null = null;
       let studentName: string | null = cleanName || null;
@@ -471,6 +496,16 @@ async function startServer() {
       const cleanAssignmentId = String(assignment_id).trim();
       const customUrl = req.body?.supabase_url || (req.headers['x-supabase-url'] as string);
       const customKey = req.body?.supabase_key || (req.headers['x-supabase-key'] as string);
+
+      if (!isSupabaseConfiguredServer(customUrl, customKey)) {
+        return res.status(200).json({
+          success: true,
+          message: 'Sinkronisasi nilai Google Sheet selesai (Mode lokal/simulasi aktif: Supabase server belum dikonfigurasi).',
+          count: 0,
+          updatedStudents: []
+        });
+      }
+
       const supabase = getAdminSupabaseClient(customUrl, customKey);
 
       // Fetch assignment details
@@ -910,6 +945,15 @@ PRINSIP UTAMA KUALITAS JAWABAN:
     res.json({ status: 'ok', service: 'Kelas Ku Webhook Server', timestamp: new Date().toISOString() });
   });
 
+  return app;
+}
+
+export const apiApp = createApiApp();
+
+async function startServer() {
+  const app = createApiApp();
+  const PORT = 3000;
+
   // =========================================================================
   // 2. VITE MIDDLEWARE (DEVELOPMENT) & STATIC SERVING (PRODUCTION)
   // =========================================================================
@@ -932,4 +976,10 @@ PRINSIP UTAMA KUALITAS JAWABAN:
   });
 }
 
-startServer();
+// Only start standalone server when not in serverless runtime (Vercel)
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default apiApp;
+

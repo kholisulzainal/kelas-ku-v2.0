@@ -203,18 +203,18 @@ export function FirebaseSyncModal({ isOpen, onClose }: FirebaseSyncModalProps) {
   };
 
   const handleResetConfig = async () => {
-    if (window.confirm('Hapus konfigurasi kustom Firebase dan kembali ke pengaturan bawaan?')) {
-      await clearCustomFirebaseConfig();
-      setApiKey('');
-      setProjectId('');
-      setAppId('');
-      setAuthDomain('');
-      setStorageBucket('');
-      setMessagingSenderId('');
-      setConfigSavedMsg('ℹ️ Konfigurasi kustom dihapus.');
-      setTestResult(null);
-      setTimeout(() => setConfigSavedMsg(''), 3000);
-    }
+    await clearCustomFirebaseConfig();
+    setApiKey('');
+    setProjectId('');
+    setAppId('');
+    setAuthDomain('');
+    setStorageBucket('');
+    setMessagingSenderId('');
+    setConfigSavedMsg('ℹ️ Konfigurasi kustom dihapus (Mode Lokal Offline).');
+    setTestResult(null);
+    window.dispatchEvent(new CustomEvent('firebase-realtime-status-changed', { detail: { enabled: false } }));
+    window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: '' } }));
+    setTimeout(() => setConfigSavedMsg(''), 3500);
   };
 
   const handleCopySecurityRules = () => {

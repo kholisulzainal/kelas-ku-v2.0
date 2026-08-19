@@ -21,6 +21,7 @@ import {
 import {
   getSupabaseConfig,
   saveSupabaseConfig,
+  disconnectSupabase,
   resetSupabaseInstance,
   getSupabaseClient,
   syncAllToSupabase,
@@ -141,31 +142,31 @@ export function SupabaseSettingsTab() {
   };
 
   const handleDisconnect = () => {
-    if (window.confirm('Putuskan koneksi (Disconnect) dari Supabase? Aplikasi akan beralih ke penyimpanan lokal (offline).')) {
-      if (realtimeCleaner) {
-        realtimeCleaner();
-        setRealtimeCleaner(null);
-      }
-      setRealtimeActive(false);
-
-      saveSupabaseConfig({ url: '', anonKey: '' });
-      resetSupabaseInstance();
-      setUrlInput('');
-      setKeyInput('');
-      const updated = getSupabaseConfig();
-      setConfig(updated);
-      setConnectionStatus('empty');
-      setConnectionError(null);
-      setLatencyMs(null);
-      setSyncStatus(null);
-      setPullStatus(null);
-      setRealtimeStatusMsg('ℹ️ Supabase terputus (Mode Lokal Offline).');
-      setSavedMsg('ℹ️ Berhasil memutuskan koneksi Supabase.');
-      setTimeout(() => {
-        setSavedMsg(null);
-        setRealtimeStatusMsg(null);
-      }, 3500);
+    if (realtimeCleaner) {
+      realtimeCleaner();
+      setRealtimeCleaner(null);
     }
+    setRealtimeActive(false);
+
+    disconnectSupabase();
+    saveSupabaseConfig({ url: '', anonKey: '' });
+    resetSupabaseInstance();
+    setUrlInput('');
+    setKeyInput('');
+    const updated = getSupabaseConfig();
+    setConfig(updated);
+    setConnectionStatus('empty');
+    setConnectionError(null);
+    setLatencyMs(null);
+    setSyncStatus(null);
+    setPullStatus(null);
+    setRealtimeStatusMsg('ℹ️ Supabase terputus (Mode Lokal Offline).');
+    setSavedMsg('ℹ️ Berhasil memutuskan koneksi Supabase. Aplikasi kini dalam Mode Lokal Offline.');
+    window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: '' } }));
+    setTimeout(() => {
+      setSavedMsg(null);
+      setRealtimeStatusMsg(null);
+    }, 4000);
   };
 
   const handleSyncAll = async () => {

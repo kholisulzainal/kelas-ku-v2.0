@@ -199,27 +199,27 @@ export function FirebaseSettingsTab() {
   };
 
   const handleDisconnect = async () => {
-    if (window.confirm('Putuskan koneksi (Disconnect) dari Firebase? Aplikasi akan beralih ke penyimpanan lokal (offline).')) {
-      if (realtimeActive) {
-        stopFirebaseRealtimeSync();
-        setRealtimeActive(false);
-      }
-      await clearCustomFirebaseConfig();
-      setApiKey('');
-      setProjectId('');
-      setAppId('');
-      setAuthDomain('');
-      setStorageBucket('');
-      setMessagingSenderId('');
-      setSavedMsg('ℹ️ Berhasil memutuskan koneksi Firebase.');
-      setTestResult(null);
-      setSyncDetails(null);
-      setSyncStatus('ℹ️ Firebase terputus (Mode Lokal Offline).');
-      setTimeout(() => {
-        setSavedMsg('');
-        setSyncStatus(null);
-      }, 3500);
+    if (realtimeActive) {
+      stopFirebaseRealtimeSync();
+      setRealtimeActive(false);
     }
+    await clearCustomFirebaseConfig();
+    setApiKey('');
+    setProjectId('');
+    setAppId('');
+    setAuthDomain('');
+    setStorageBucket('');
+    setMessagingSenderId('');
+    setSavedMsg('ℹ️ Berhasil memutuskan koneksi Firebase. Aplikasi kini dalam Mode Lokal Offline.');
+    setTestResult(null);
+    setSyncDetails(null);
+    setSyncStatus('ℹ️ Firebase terputus (Mode Lokal Offline).');
+    window.dispatchEvent(new CustomEvent('firebase-realtime-status-changed', { detail: { enabled: false } }));
+    window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: '' } }));
+    setTimeout(() => {
+      setSavedMsg('');
+      setSyncStatus(null);
+    }, 4000);
   };
 
   const handleCopyRules = () => {

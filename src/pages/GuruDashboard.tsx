@@ -675,23 +675,20 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   };
 
   const handleDeleteClassConfirm = (targetClass: string) => {
-    const studentCount = siswas.filter(s => s.kelas === targetClass).length;
-    if (window.confirm(`Apakah Anda yakin ingin menghapus "${targetClass}"? ${studentCount > 0 ? `Terdapat ${studentCount} siswa terdaftar di kelas ini.` : ''}`)) {
-      const updated = classList.filter(c => c !== targetClass);
-      setClassList(updated);
-      localStorage.setItem('daftar_kelas', JSON.stringify(updated));
-      if (activeClassFilter === targetClass) {
-        setActiveClassFilter('Semua');
-      }
-      if (selectedClassForCards === targetClass) {
-        setSelectedClassForCards('all');
-      }
-      setCustomAlert({
-        title: 'Kelas Dihapus',
-        message: `Kelas "${targetClass}" berhasil dihapus dari daftar kelas.`,
-        type: 'success'
-      });
+    const updated = classList.filter(c => c !== targetClass);
+    setClassList(updated);
+    localStorage.setItem('daftar_kelas', JSON.stringify(updated));
+    if (activeClassFilter === targetClass) {
+      setActiveClassFilter('Semua');
     }
+    if (selectedClassForCards === targetClass) {
+      setSelectedClassForCards('all');
+    }
+    setCustomAlert({
+      title: 'Kelas Dihapus',
+      message: `Kelas "${targetClass}" berhasil dihapus dari daftar kelas.`,
+      type: 'success'
+    });
   };
 
   const handleDownloadLoginCardsPDF = async (targetClassOverride?: string) => {
@@ -1567,12 +1564,14 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   };
 
   const handleRemoveGoogleAuth = async (guruId: string) => {
-    if (window.confirm('Apakah Anda yakin ingin mencabut otorisasi Email Google untuk Guru ini?')) {
-      updateGuruGoogleEmail(guruId, null);
-      setGurus(db.guru.getAll());
-      window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'guru' } }));
-      alert('Otorisasi email Google berhasil dicabut.');
-    }
+    updateGuruGoogleEmail(guruId, null);
+    setGurus(db.guru.getAll());
+    window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'guru' } }));
+    setCustomAlert({
+      title: 'Otorisasi Dicabut',
+      message: 'Otorisasi email Google untuk guru ini telah berhasil dicabut.',
+      type: 'info'
+    });
   };
 
   // B. SISWA CRUD

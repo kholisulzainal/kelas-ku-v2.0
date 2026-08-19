@@ -275,17 +275,6 @@ export function AplikasiSetting() {
   };
 
   const handleDeleteClassConfirm = (clsName: string) => {
-    const studentCount = siswas.filter(s => s.kelas === clsName).length;
-    if (studentCount > 0) {
-      if (!window.confirm(`Kelas "${clsName}" memiliki ${studentCount} siswa terdaftar. Yakin ingin menghapus kelas ini?`)) {
-        return;
-      }
-    } else {
-      if (!window.confirm(`Yakin ingin menghapus kelas "${clsName}" dari sistem?`)) {
-        return;
-      }
-    }
-
     const updated = classList.filter(c => c !== clsName);
     setClassList(updated);
     localStorage.setItem('daftar_kelas', JSON.stringify(updated));

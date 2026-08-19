@@ -311,9 +311,6 @@ export function GoogleWorkspaceModal({ isOpen, onClose }: GoogleWorkspaceModalPr
   };
 
   const handleGoogleSignOut = async () => {
-    const confirmed = window.confirm('Apakah Anda yakin ingin mematikan koneksi Google Workspace?');
-    if (!confirmed) return;
-
     try {
       await logoutGoogle();
       linkGoogleEmailToActiveGuru(null);
@@ -379,9 +376,6 @@ export function GoogleWorkspaceModal({ isOpen, onClose }: GoogleWorkspaceModalPr
 
     const student = siswas.find(s => s.id === selectedDocStudentId);
     if (!student) return;
-
-    const confirmed = window.confirm(`Generate dan unggah laporan formal Google Docs untuk siswa ${student.namaSiswa}?`);
-    if (!confirmed) return;
 
     setIsCreatingDoc(true);
     setAlert(null);
@@ -468,9 +462,6 @@ REKAPITULASI NILAI ASESMEN & KOMPETENSI:
   const handleUploadDatabaseBackup = async () => {
     if (!googleToken) return;
 
-    const confirmed = window.confirm('Unggah file salinan (backup) seluruh database lokal Kurikulum Merdeka Anda ke Google Drive?');
-    if (!confirmed) return;
-
     setIsDriveLoading(true);
     setAlert(null);
 
@@ -519,9 +510,6 @@ REKAPITULASI NILAI ASESMEN & KOMPETENSI:
   // ==========================================
   const handleExportStudentsToSheets = async () => {
     if (!googleToken) return;
-
-    const confirmed = window.confirm('Apakah Anda ingin mengekspor seluruh daftar siswa aktif ke Google Sheets baru?');
-    if (!confirmed) return;
 
     setIsExportingSheets(true);
     setAlert(null);
@@ -604,9 +592,6 @@ REKAPITULASI NILAI ASESMEN & KOMPETENSI:
         return;
       }
     }
-
-    const confirmed = window.confirm(`Unduh lembar respon dari Google Form ID [${formId}] untuk penilaian otomatis siswa?`);
-    if (!confirmed) return;
 
     setIsSyncingForm(true);
     setAlert(null);
@@ -734,9 +719,6 @@ REKAPITULASI NILAI ASESMEN & KOMPETENSI:
       }
       student.noTeleponOrtu = emailPrompt; // Temporary storage
     }
-
-    const confirmed = window.confirm(`Kirim surat laporan perkembangan Kurikulum Merdeka kepada wali murid ${student.namaSiswa} (${student.noTeleponOrtu})?`);
-    if (!confirmed) return;
 
     setIsSendingEmail(true);
     setAlert(null);

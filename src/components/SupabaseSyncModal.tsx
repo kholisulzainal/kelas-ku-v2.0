@@ -11,11 +11,13 @@ import {
   Shield, 
   Info, 
   HelpCircle,
-  ExternalLink
+  ExternalLink,
+  Unplug
 } from 'lucide-react';
 import { 
   getSupabaseConfig, 
   saveSupabaseConfig, 
+  disconnectSupabase,
   resetSupabaseInstance, 
   getSupabaseClient, 
   syncAllToSupabase, 
@@ -113,6 +115,18 @@ export function SupabaseSyncModal({ isOpen, onClose }: SupabaseSyncModalProps) {
     setTimeout(() => {
       testConnection();
     }, 100);
+  };
+
+  const handleDisconnect = () => {
+    disconnectSupabase();
+    setUrlInput('');
+    setKeyInput('');
+    setConfig({ url: '', anonKey: '' });
+    setConnectionStatus('empty');
+    setConnectionError(null);
+    setSyncStatus(null);
+    setPullStatus(null);
+    window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: '' } }));
   };
 
   const handleSyncAll = async () => {
@@ -308,7 +322,16 @@ export function SupabaseSyncModal({ isOpen, onClose }: SupabaseSyncModalProps) {
               </div>
             </div>
 
-            <div className="flex justify-end pt-1">
+            <div className="flex items-center justify-between pt-1 gap-2">
+              {Boolean(config.url && config.anonKey) ? (
+                <button
+                  type="button"
+                  onClick={handleDisconnect}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold text-[11px] sm:text-xs rounded-xl cursor-pointer border border-rose-200 dark:border-rose-900 transition-colors"
+                >
+                  <Unplug className="w-3.5 h-3.5" /> Putuskan Koneksi (Disconnect)
+                </button>
+              ) : <div />}
               <button
                 type="submit"
                 className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] sm:text-xs rounded-xl cursor-pointer shadow-sm transition-colors"
