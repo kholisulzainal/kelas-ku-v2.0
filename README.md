@@ -164,9 +164,9 @@ Kontribusi, saran perbaikan, serta *pull request* sangat terbuka bagi seluruh re
 
 ---
 
-## 8. Dukungan & Donasi Pengembangan (QRIS)
+## 8. Dukungan & Traktir Kopi (QRIS)
 
-Jika aplikasi ini bermanfaat bagi kegiatan belajar mengajar atau institusi sekolah Anda, Anda dapat memberikan apresiasi dan mendukung pengembangan berkelanjutan aplikasi ini melalui donasi QRIS di bawah:
+Jika aplikasi ini bermanfaat bagi kegiatan belajar mengajar atau institusi sekolah Anda, Anda dapat memberikan apresiasi dan mendukung pengembangan berkelanjutan aplikasi ini melalui QRIS di bawah:
 
 <div align="center">
   <br />
@@ -176,8 +176,7 @@ Jika aplikasi ini bermanfaat bagi kegiatan belajar mengajar atau institusi sekol
   
   <br /><br />
   
-  **Kholisul Zainal Asfan Sholikh, S.Pd.**  
-  *Dukungan Pengembangan Aplikasi Pendidikan Open Source*  
+  **Traktir Kopi**  
 
 </div>
 
