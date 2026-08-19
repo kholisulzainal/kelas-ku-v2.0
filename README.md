@@ -1,13 +1,14 @@
-# 📚 KELAS KU (Sistem Manajemen Sekolah & LMS Digital)
+# KELAS KU
+### Sistem Informasi Manajemen Sekolah & Platform Pembelajaran Digital
 
-> **Dokumentasi Arsitektur, Struktur Direktori, Alur Database, dan Panduan Penggunaan**  
-> *Versi Rilis: 2.8.0 | Stack: React 19 + TypeScript + Vite + Express + Firebase Firestore & Supabase | Zona Waktu: WIB (Asia/Jakarta)*
+> Dokumentasi Arsitektur, Struktur Direktori, Alur Database, dan Panduan Penggunaan  
+> Versi Rilis: 2.9.0 | Stack: React 19 + TypeScript + Vite + Express + Supabase & Firebase | Vercel Serverless Ready
 
 ---
 
-## 1. 📐 GAMBARAN UMUM & ARSITEKTUR SISTEM
+## 1. Gambaran Umum & Arsitektur Sistem
 
-**KELAS KU** adalah aplikasi *School Management System* (SMS) dan *Learning Management System* (LMS) modern untuk institusi pendidikan (SD, SMP, SMA/SMK) di Indonesia. Aplikasi ini mendukung Kurikulum Merdeka dan Kurikulum 2013 dengan fitur manajemen data sekolah, penilaian asesmen (Formatif, Sumatif, SAS), presensi digital, perpustakaan buku digital & LKPD, integrasi AI Google Gemini, serta sinkronisasi multi-cloud (Firebase Cloud Firestore & Supabase PostgreSQL).
+**KELAS KU** adalah aplikasi *School Management System* (SMS) dan *Learning Management System* (LMS) modern untuk institusi pendidikan (SD, SMP, SMA/SMK) di Indonesia. Aplikasi ini mendukung Kurikulum Merdeka dan Kurikulum 2013 dengan fitur manajemen data sekolah, penilaian asesmen (Formatif, Sumatif Lingkup Materi, SAS), presensi digital, perpustakaan buku digital & LKPD, generator perangkat ajar berbasis Google Gemini AI, serta sinkronisasi multi-cloud (Supabase PostgreSQL & Firebase Firestore).
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -23,8 +24,8 @@
                                      HTTP / REST API
                                            v
 +-----------------------------------------------------------------------------------+
-|                                  BACKEND SERVER                                   |
-|                  Node.js + Express (Port 3000) [TZ: Asia/Jakarta]                |
+|                           BACKEND & SERVERLESS API                                |
+|             Node.js + Express (Port 3000 / Vercel Serverless Function)            |
 |  +--------------------+   +-----------------------+   +------------------------+  |
 |  | /api/webhooks/gform|   | /api/ai/tutor         |   | /api/health            |  |
 |  +--------------------+   +-----------------------+   +------------------------+  |
@@ -42,176 +43,154 @@
 
 ---
 
-## 2. 🗂️ STRUKTUR DASAR DIREKTORI PROYEK
+## 2. Pembaruan & Fitur Terkini (Versi 2.9.0)
 
-Struktur direktori aplikasi disusun secara modular untuk memisahkan antarmuka (UI), logika bisnis (Services), perutean peran (Pages), dan backend Express:
+1. **Integrasi Penuh AI Pembuat Soal**:
+   - Menyatukan fungsionalitas pembuatan naskah soal berbasis Google Gemini AI, generator script **Google Apps Script**, dan **Webhook Receiver** ke dalam satu modul terpadu tanpa menu terpisah yang berulang.
+2. **Kesiapan Deploy Vercel (Vercel Serverless Ready)**:
+   - Menyediakan entry point `/api/index.ts` dan konfigurasi `vercel.json` sehingga backend Express dapat berjalan sebagai Vercel Serverless Function maupun di container mandiri.
+3. **Optimasi Pemutusan Koneksi (Disconnect Reliability)**:
+   - Memperbaiki tombol *Disconnect* dan *Reset* pada Supabase dan Firebase agar bekerja seketika tanpa terblokir dialog browser di dalam sandbox iframe.
+4. **Resiliensi Webhook & Fallback Cerdas**:
+   - Penanganan penerimaan data webhook Google Form dan sinkronisasi lembar nilai secara andal saat database cloud dalam proses inisialisasi.
+
+---
+
+## 3. Struktur Direktori Proyek
 
 ```
 kelas-ku/
-├── .env.example                  # Template konfigurasi environment variables
-├── index.html                    # Entry point HTML utama
-├── metadata.json                 # Metadata aplikasi & konfigurasi kapabilitas
-├── package.json                  # Manifest dependensi dan script build/dev
-├── server.ts                     # Server backend Express (API endpoints, Gemini AI, Webhook)
-├── tsconfig.json                 # Konfigurasi TypeScript
-├── vite.config.ts                # Konfigurasi bundler Vite & plugin Tailwind CSS
+├── .env.example                  # Template variabel lingkungan
+├── api/                          # Serverless handler (Vercel deployment)
+│   └── index.ts                  # Vercel serverless entry point
+├── index.html                    # Entry point dokumen HTML utama
+├── metadata.json                 # Metadata platform & perizinan aplikasi
+├── package.json                  # Konfigurasi dependensi dan script build
+├── server.ts                     # Server Express backend & Vite middleware
+├── tsconfig.json                 # Konfigurasi kompilasi TypeScript
+├── vercel.json                   # Konfigurasi routing dan deployment Vercel
+├── vite.config.ts                # Konfigurasi bundler Vite & styling
 │
 └── src/
-    ├── main.tsx                  # Entry point React (DOM Mount)
-    ├── App.tsx                   # Komponen induk navigasi peran (Role-based Routing)
-    ├── index.css                 # Global styling & Tailwind CSS directives
-    ├── types.ts                  # Deklarasi global TypeScript interfaces, types, & enums
+    ├── main.tsx                  # Entry point React DOM
+    ├── App.tsx                   # Navigasi & perutean berbasis peran
+    ├── index.css                 # Konfigurasi styling Tailwind CSS
+    ├── types.ts                  # Deklarasi tipe data, antarmuka, & enum
     │
-    ├── components/               # Komponen antarmuka modular (UI Components)
+    ├── components/               # Komponen antarmuka modular
     │   ├── Header.tsx            # Bilah navigasi atas (Profil, Notifikasi, Cloud, Tema)
     │   ├── Sidebar.tsx           # Navigasi samping menu akademik & administratif
-    │   ├── Footer.tsx            # Footer informasi aplikasi & status sinkronisasi
-    │   ├── ThemeContext.tsx      # State manager tema tampilan (Terang / Gelap / Otomatis)
-    │   ├── ThemeControlMenu.tsx  # Dropdown pemilih tema visual
+    │   ├── Footer.tsx            # Informasi aplikasi & status sinkronisasi
+    │   ├── ThemeContext.tsx      # State manager tema tampilan
     │   ├── FirebaseSyncModal.tsx # Modal sinkronisasi Google Cloud Firebase Firestore
-    │   ├── FirebaseSettingsTab.tsx # Pengaturan konfigurasi kredensial Firebase
+    │   ├── FirebaseSettingsTab.tsx # Pengaturan kredensial Firebase
     │   ├── SupabaseSyncModal.tsx # Modal sinkronisasi database Supabase PostgreSQL
-    │   ├── AsesmenMatrixTable.tsx# Tabel input & rekapitulasi matriks nilai siswa
+    │   ├── SupabaseSettingsTab.tsx # Pengaturan kredensial Supabase
+    │   ├── AsesmenMatrixTable.tsx# Matriks rekapitulasi nilai formatif & sumatif
     │   ├── BukuDigitalView.tsx   # Pembaca PDF & repositori materi digital/LKPD
     │   ├── AiTutorGuruView.tsx   # Asisten AI Pedagogi Guru berbasis Gemini API
-    │   ├── AiPerangkatAjarView.tsx # AI Generator TP, ATP, Prota, Promes, & Modul Ajar
-    │   ├── AiGeneratorSoalView.tsx # AI Penyusun naskah soal & script Google Form
-    │   ├── GoogleAppsScriptModal.tsx # Modal penyedia script otomatisasi Google Form
-    │   ├── GoogleSheetsSyncPanel.tsx # Panel integrasi & sinkronisasi Google Spreadsheet
-    │   ├── GoogleWorkspaceModal.tsx  # Pengaturan akun Google Workspace / OAuth
-    │   ├── NotificationCenter.tsx    # Pusat notifikasi & pemberitahuan sistem
-    │   ├── AutoLogoutManager.tsx     # Pengaman auto-lock sesi tidak aktif
-    │   ├── IndonesianCalendar.tsx    # Kalender akademik dan hari libur nasional
-    │   └── StudentAssignmentCard.tsx # Kartu interaktif daftar tugas pengerjaan siswa
+    │   ├── AiPerangkatAjarView.tsx # AI Generator TP, ATP, Promes, Prota, & Modul Ajar
+    │   ├── AiGeneratorSoalView.tsx # AI Penyusun naskah soal & otomatisasi Google Form
+    │   ├── GoogleWorkspaceModal.tsx # Integrasi Google Workspace (Drive, Docs, Sheets)
+    │   ├── AutoLogoutManager.tsx # Pengaman auto-lock sesi tidak aktif
+    │   └── IndonesianCalendar.tsx# Kalender akademik dan hari libur nasional
     │
-    ├── pages/                    # Halaman portal pengguna per peran (Role Portals)
+    ├── pages/                    # Halaman portal pengguna per peran
     │   ├── Login.tsx             # Halaman autentikasi multi-peran
-    │   ├── GuruDashboard.tsx     # Dasbor Guru & Wali Kelas (Akademik, Nilai, Presensi)
+    │   ├── GuruDashboard.tsx     # Dasbor Guru & Wali Kelas
     │   ├── SiswaDashboard.tsx    # Portal Siswa (Tugas, Absensi, Rapor, Buku)
-    │   └── OrangTuaDashboard.tsx # Portal Wali Murid (Monitoring nilai & kehadiran anak)
+    │   └── OrangTuaDashboard.tsx # Portal Wali Murid (Monitoring anak)
     │
-    ├── services/                 # Layer data & konektivitas cloud (Data Access Layer)
-    │   ├── db.ts                 # Database controller lokal (Local Storage persistence)
-    │   ├── firebase.ts           # Service integrasi Firebase Firestore (Push, Pull, Realtime)
-    │   ├── firebaseClient.ts     # Inisialisasi Firebase App & Firestore SDK client
-    │   ├── supabase.ts           # Service integrasi Supabase PostgreSQL
-    │   ├── supabaseClient.ts     # Inisialisasi Supabase SDK client
-    │   ├── realtimeSync.ts       # Broadcast & event listener pembaruan lintas tab
-    │   ├── googleServices.ts     # Integrasi Google Form, Webhook receiver, & Apps Script
-    │   ├── googleAuth.ts         # Otentikasi Google OAuth2 / GIS
-    │   ├── googleWorkspace.ts    # Integrasi Google Drive & Dokumen Workspace
-    │   ├── storage.service.ts    # Manajemen penyimpanan file & aset media
-    │   ├── sekolah.service.ts    # Service profil sekolah, kop surat, & tahun ajaran
-    │   ├── guru.service.ts       # Service manajemen data pendidik & tenaga kependidikan
-    │   ├── siswa.service.ts      # Service manajemen data peserta didik & rombel
-    │   ├── tugas.service.ts      # Service manajemen tugas, kuis, & penugasan Google Form
-    │   ├── attendance.service.ts # Service presensi harian siswa (QR & manual)
-    │   └── settings.service.ts   # Service konfigurasi aplikasi & preferensi
-    │
-    └── utils/                    # Utilitas pendukung & helper functions
-        └── formatters.ts         # Pemformat tanggal WIB, angka, kurikulum, & string
+    └── services/                 # Layer data & konektivitas cloud
+        ├── db.ts                 # Database controller lokal (Local Storage)
+        ├── firebase.ts           # Service integrasi Firebase Firestore
+        ├── firebaseClient.ts     # Inisialisasi Firebase App Client
+        ├── supabase.ts           # Service integrasi Supabase PostgreSQL
+        ├── supabaseClient.ts     # Inisialisasi Supabase Client
+        ├── googleServices.ts     # Integrasi Google Form & Webhook
+        ├── googleAuth.ts         # Otentikasi Google OAuth2
+        └── googleWorkspace.ts    # Integrasi Google Drive & Dokumen Workspace
 ```
 
 ---
 
-## 3. 👥 HAK AKSES & PERAN PENGGUNA (ROLE MATRIX)
+## 4. Matriks Hak Akses Pengguna
 
-| Role | Portal / Page | Fitur Utama |
+| Peran Pengguna | Halaman / Portal | Fitur Utama |
 | :--- | :--- | :--- |
-| **Kepala Sekolah / Admin** | `GuruDashboard` (Admin Mode) | Profil sekolah, master data (Guru, Siswa, Kelas), sinkronisasi cloud, rekapitulasi rapor, export Excel/PDF. |
-| **Guru / Wali Kelas** | `GuruDashboard` | Penilaian asesmen formatif/sumatif, presensi kelas, pembuatan tugas Google Form, modul ajar AI, buku guru. |
-| **Siswa** | `SiswaDashboard` | Pengerjaan tugas tertanam (embedded kuis), rekap nilai harian, presensi mandiri, perpustakaan buku digital & LKPD. |
-| **Orang Tua / Wali** | `OrangTuaDashboard` | Pemantauan perkembangan belajar anak, histori kehadiran, nilai rapor, dan transparansi tugas sekolah. |
+| **Kepala Sekolah / Admin** | `GuruDashboard` (Admin Mode) | Profil sekolah, master data (Guru, Siswa, Rombel), sinkronisasi cloud, rekapitulasi rapor, ekspor Excel/PDF. |
+| **Guru / Wali Kelas** | `GuruDashboard` | Penilaian asesmen formatif/sumatif, presensi harian, pembuatan tugas Google Form, modul ajar AI, buku digital guru. |
+| **Siswa** | `SiswaDashboard` | Pengerjaan tugas Google Form, rekap nilai harian, presensi mandiri, perpustakaan materi belajar digital & LKPD. |
+| **Orang Tua / Wali** | `OrangTuaDashboard` | Pemantauan perkembangan belajar anak, histori presensi kehadiran, nilai rapor, dan keterbukaan tugas sekolah. |
 
 ---
 
-## 4. 🔄 ALUR MANAJEMEN DATA & SINKRONISASI CLOUD
-
-Aplikasi menerapkan arsitektur **Offline-First dengan Multi-Cloud Sync**:
-
-1. **Local Storage First**: Setiap operasi tulis/baca disimpan seketika ke `localStorage` melalui `db.ts`, menjamin aplikasi tetap bekerja responsif walau tanpa internet.
-2. **Cloud Firebase Firestore**:
-   * **Push All**: Mengunggah seluruh koleksi lokal ke Google Cloud Firestore.
-   * **Pull All**: Mengunduh seluruh dokumen Firestore untuk menyelaraskan perangkat lain secara paralel (didukung REST API fallback).
-   * **Realtime Listener**: Memperbarui status data lokal secara instan ketika ada perubahan di cloud.
-3. **Google Form & Webhook Receiver**:
-   * Siswa mengirim respons kuis Google Form -> Google Apps Script mengirim payload nilai ke endpoint backend `/api/webhooks/google-form`.
-   * Nilai tersimpan secara unik (`as-{tugasId}-{siswaId}`) dan otomatis memicu event pembaruan UI secara real-time.
-
----
-
-## 5. 🎨 SISTEM TEMA & KUSTOMISASI TAMPILAN
-
-* **Pilihan Mode**:
-  * ☀️ **Terang (Light)**: Latar bersih dan kontras tinggi untuk kenyamanan siang hari.
-  * 🌙 **Gelap (Dark)**: Latar gelap ramah mata untuk penggunaan malam hari.
-  * 💻 **Otomatis (System)**: Menyesuaikan secara dinamis dengan preferensi sistem operasi perangkat pengguna.
-* **Aksen Warna Tema**: Mendukung ragam palet (Biru Samudra, Hijau Zamrud, Ungu Lavender, Merah Rose, Kuning Amber, Nila Indigo, Sian, dan Slate).
-
----
-
-## 6. 🚀 PANDUAN MENJALANKAN APLIKASI
+## 5. Panduan Menjalankan Aplikasi
 
 ### Mode Pengembangan (Development)
 ```bash
-# Menjalankan Express backend + Vite dev server di port 3000
 npm run dev
 ```
+Server Express dan Vite akan berjalan di alamat `http://localhost:3000`.
 
-### Memeriksa Integritas Tipe (Lint)
+### Pemeriksaan Integritas Tipe Data (Lint)
 ```bash
 npm run lint
 ```
 
 ### Membangun Versi Produksi (Production Build)
 ```bash
-# Mengompilasi frontend ke dist/ dan server backend ke dist/server.cjs via ESBuild
 npm run build
-
-# Menjalankan server produksi
 npm start
 ```
 
----
-
-## 7. 🔍 HASIL AUDIT KUALITAS & ANALISIS TEKNIS (QA & PRODUCTION AUDIT)
-
-### A. Inventarisasi & Pemetaan Fungsi Kunci
-
-| Namespace / Layanan | Fungsi Utama | Parameter Input | Output / Dampak | Peran dalam Sistem |
-| :--- | :--- | :--- | :--- | :--- |
-| **`server.ts`** (Backend API) | `POST /api/gemini/generate-assessment` | `{ prompt, contextData, modelType }` | `{ success, result }` | Proxy aman ke Gemini AI tanpa mengekspos API key ke browser. |
-| | `POST /api/webhooks/google-form` | Body: JSON Google Form Response | `{ success: true, count }` | Webhook receiver penyerap nilai kuis otomatis dari Google Form. |
-| **`src/services/firebase.ts`** | `pullAllFromFirebase()` | `None` | `{ success, details }` | Mengambil seluruh 14 koleksi Firestore untuk inisialisasi awal perangkat baru. |
-| | `syncRowToFirebase()` | `(col, docId, data)` | `Promise<boolean>` | Background worker penyimpan mutasi data lokal ke Firestore. |
-| | `startFirebaseRealtimeSync()` | `(onUpdateCallback?)` | `Unsubscribe Function` | Membuka listener `onSnapshot` Firestore agar data ter-update real-time. |
-| | `isFirebaseRealtimeEnabled()` | `None` | `boolean` | Membaca status preferensi real-time dari `localStorage` secara persisten. |
-| **`src/services/db.ts`** | `db.siswa.upsert()` | `Siswa` | `void` | Menyimpan master siswa dan memicu mutasi cloud dwiarah. |
-| | `db.penilaian.upsert()` | `Penilaian` | `void` | Menyimpan nilai formatif/sumatif dan memancarkan event `penilaians-updated`. |
-| | `db.tugasSiswa.submitTask()` | `(tugasId, siswaId, jawaban)` | `TugasSiswa` | Menangani pengerjaan tugas mandiri siswa dan kalkulasi skor otomatis. |
-| | `db.absensi.saveBulk()` | `Absensi[]` | `void` | Batch saving presensi harian kelas untuk efisiensi I/O. |
-
-### B. Audit Keamanan & Keandalan (Security & Resilience)
-* **Keamanan Kredensial:** API Key sensitif (Gemini AI & Service Role) tersimpan di level backend environment, sedangkan Firebase Web SDK menggunakan proteksi rules berbasis domain & auth.
-* **Offline-to-Online Resilience:** Jika internet terputus, seluruh transaksi data tetap tersimpan aman di `localStorage` tanpa menimbulkan crash UI. Begitu koneksi aktif kembali, sistem menyelaraskan data ke cloud secara otomatis.
-* **State Persistence:** Status toggle Real-Time Sync tersimpan persisten sehingga tidak akan pernah non-aktif saat browser di-refresh atau berpindah tab.
-
-### C. Deployment Verification Checklist
-
-- [x] **TypeScript Strict Check:** `tsc --noEmit` lulus 100% tanpa error tipe data.
-- [x] **Production Bundle Build:** `npm run build` sukses mengompilasi frontend Vite dan backend CommonJS bundle `dist/server.cjs`.
-- [x] **Zero Hardcoded Secrets:** Variabel lingkungan terisolasi dengan aman di `.env` / Vercel Environment Variables.
-- [x] **Responsive & Accessible UI:** Tampilan adaptif di perangkat Desktop, Tablet, dan Smartphone dengan dukungan Dark Mode.
-- [x] **Print & Export Engine:** Cetak Rapor Digital (PDF), Kartu Ujian, dan Rekap Nilai/Absensi (Excel) berfungsi optimal.
+### Deployment ke Vercel
+Proyek ini sudah dilengkapi dengan konfigurasi `vercel.json` dan `/api/index.ts`. Cukup hubungkan repositori ke Vercel, lalu isi Environment Variables yang diperlukan (`GEMINI_API_KEY`, dsb.).
 
 ---
 
-## 8. 🏆 KEPUTUSAN STATUS: SIAP DEPLOY (PRODUCTION READY)
+## 6. Proyek Open Source & Komunitas
 
-Aplikasi telah melewati pengujian integrasi, validasi tipe data, dan audit arsitektur. Seluruh fungsionalitas inti telah siap untuk digunakan di lingkungan produksi (*live deployment*).
+Aplikasi ini berstatus **Open Source** di bawah lisensi MIT. Siapa saja dipersilakan untuk menggunakan, memodifikasi, memperluas fitur, dan mendistribusikannya kembali untuk mendukung digitalisasi dan memajukan pendidikan di seluruh Indonesia.
+
+Kontribusi, saran perbaikan, serta *pull request* sangat terbuka bagi seluruh rekan guru, pengembang, dan praktisi pendidikan.
 
 ---
 
-## 9. 📄 LISENSI
-Hak Cipta (c) 2026 **KELAS KU** - Sistem Manajemen Sekolah & LMS Digital. Berlisensi di bawah ketentuan lisensi MIT.
+## 7. Pengembang & Dukungan
 
+- **Pengembang Aplikasi**: **Kholisul Zainal Asfan Sholikh, S.Pd.**
+- **Dukungan AI**: **Google AI Studio** & Gemini Generative AI
+
+---
+
+## 8. Dukungan & Donasi Pengembangan (QRIS)
+
+Jika aplikasi ini bermanfaat bagi kegiatan belajar mengajar atau institusi sekolah Anda, Anda dapat memberikan apresiasi dan mendukung pengembangan berkelanjutan aplikasi ini melalui donasi QRIS di bawah:
+
+<div align="center">
+  <br />
+  
+  <!-- TEMPAT KODE QRIS: Ganti file /public/qris.svg atau upload /public/qris.png -->
+  <img src="public/qris.svg" alt="Kode QRIS Donasi Kholisul Zainal Asfan Sholikh, S.Pd." width="280" style="border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);" onerror="this.onerror=null; this.src='https://placehold.co/300x300/f8fafc/334155?text=TEMPELKAN+GAMBAR+QRIS+DISINI';" />
+  
+  <br /><br />
+  
+  **Kholisul Zainal Asfan Sholikh, S.Pd.**  
+  *Dukungan Pengembangan Aplikasi Pendidikan Open Source*  
+  
+  <br />
+  
+  ```text
+  [ Panduan Pengisian Kode QRIS ]
+  1. Simpan gambar barcode QRIS Anda dengan nama file 'qris.png' di dalam folder /public/
+     ATAU
+  2. Ganti nilai src pada tag <img> di atas dengan URL gambar QRIS Anda yang sudah diupload online.
+  ```
+</div>
+
+---
+
+## 9. Lisensi
+Hak Cipta (c) 2026 **Kholisul Zainal Asfan Sholikh, S.Pd.** - Sistem Manajemen Sekolah & LMS Digital.  
+Didistribusikan di bawah Lisensi MIT. Bebas digunakan dan dikembangkan untuk kemaslahatan pendidikan.

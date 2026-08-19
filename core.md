@@ -1,63 +1,65 @@
 # SPESIFIKASI SISTEM UTAMA & ARSITEKTUR KELAS KU
 **Sistem Informasi Manajemen Sekolah Dasar (SIM-SD) & Kurikulum Merdeka Hub**
+*Versi Sistem: 2.9.0 | Status: Siap Rilis (Production Ready & Vercel Compatible)*
 
 ---
 
-## 1. Filosofi & Batasan Utama Sistem ("Kamar Privasi")
+## 1. Filosofi & Batasan Akses Sistem ("Kamar Privasi")
 1. **Akses Berbasis Peran & Kamar Privasi Per Kelas**:
-   - **Operator**: Memiliki akses penuh (*Full Admin*) terhadap seluruh konfigurasi sekolah, manajemen akun guru & siswa, cadangan database, serta modul global.
-   - **Guru / Wali Kelas**: Mengelola siswa, absensi, daftar tugas, serta penilaian pada kelas yang diwalikan atau mata pelajaran yang diampu. Guru tidak dapat mengubah data kelas lain.
-   - **Siswa**: Melihat daftar tugas Google Form, status pengerjaan & nilai, absensi, serta buku digital khusus untuk kelas siswa bersangkutan.
-   - **Orang Tua**: Memantau perkembangan, rekap kehadiran, serta nilai ananda yang terhubung dengan akun orang tua.
+   - **Operator / Admin**: Memiliki hak akses penuh (*Full Administrator*) untuk mengelola profil sekolah, struktur kelas, master data guru & siswa, audit trail, serta pencadangan data global.
+   - **Guru / Wali Kelas**: Mengelola siswa, absensi kehadiran, daftar tugas, perangkat ajar AI, serta matriks penilaian pada rombel kelas yang diwalikan atau mata pelajaran yang diampu. Guru dibatasi dari modifikasi data kelas lain.
+   - **Siswa**: Mengakses tugas terintegrasi Google Form, melihat rekapitulasi nilai harian, memantau riwayat presensi, serta membuka perpustakaan buku digital & LKPD sesuai kelas terdaftar.
+   - **Orang Tua / Wali**: Memantau rekap absensi, nilai asesmen, serta catatan perkembangan anak yang terhubung dengan akun orang tua secara transparan.
 
-2. **Keamanan Input Nilai & Mencegah Kecurangan**:
-   - Muka input nilai kuis/tugas **DIHAPUS DARI HALAMAN SISWA**. Siswa mengerjakan tugas kuis melalui Google Form resmi.
-   - Rekap & sinkronisasi nilai dikontrol secara otomatis melalui **Webhook Google Form** langsung ke tabel `tugas_siswa` dan `penilaian` di Supabase & Aplikasi.
-
----
-
-## 2. Arsitektur Data & Alur Sinkronisasi Database
-- **Penyimpanan Lokal (Local Persistence)**: Menggunakan `localStorage` terstruktur melalui `/src/services/db.ts` sebagai cache instan di browser.
-- **Sinkronisasi Supabase Cloud**: Sinkronisasi dua arah (*bi-directional*) real-time ke tabel PostgreSQL Supabase (`profil_sekolah`, `guru`, `siswa`, `orang_tua`, `daftar_tugas`, `tugas_siswa`, `penilaian`, `absensi`, `buku_digital`, dll.) melalui `/src/services/supabase.ts`.
-- **Layanan API Terstruktur**:
-  - `/src/services/guru.service.ts` -> Layanan data Guru
-  - `/src/services/siswa.service.ts` -> Layanan data Siswa
-  - `/src/services/tugas.service.ts` -> Layanan data Daftar Tugas & Tugas Siswa
-  - `/src/services/sekolah.service.ts` -> Layanan data Profil Sekolah
-  - `/src/services/storage.service.ts` -> Layanan unggah berkas Supabase Storage (`logos`, `teachers`, `students`, `documents`, `assignments`, `buku_digital`, `avatars`)
+2. **Integritas Penilaian & Pencegahan Kecurangan**:
+   - Input nilai kuis mandiri siswa ditiadakan dari dashboard siswa demi integritas data. Siswa mengerjakan tugas melalui formulir Google Form resmi.
+   - Rekap nilai diserap secara otomatis melalui endpoint **Webhook Google Form** (`/api/webhooks/google-form`) dan dipetakan ke tabel `tugas_siswa` serta `penilaian`.
 
 ---
 
-## 3. Struktur Modul & Fungsi Fitur
-1. **Profil Sekolah & Pengaturan Aplikasi**:
-   - Identitas Sekolah (NPSN, Nama, Akreditasi, Alamat, Kepala Sekolah).
-   - Backup, Restore, & Audit Trail Database.
-2. **Manajemen Guru**:
-   - Pendataan NIP, Nama Guru, Gelar, Status Kepegawaian, Google Email, dan Penugasan Kelas Wali.
-3. **Manajemen Siswa & Orang Tua**:
-   - Pendataan NISN, NIS, Nama Siswa, Kelas, Orang Tua/Wali, dan Kredensial Login.
-4. **Mata Pelajaran & Jadwal Pelajaran**:
-   - Pemetaan KKM, Kode Mapel, Jam Pelajaran, dan Ruangan.
-5. **Absensi & Kehadiran Siswa**:
-   - Catatan Hadir, Sakit, Izin, Alpa dengan perhitungan rekap persentase kehadiran otomatis.
-6. **Penilaian & Asesmen Kurikulum Merdeka (Matrix Nilai Rapor)**:
-   - Nama Siswa & NISN.
-   - Mata Pelajaran.
-   - Nilai Formatif Harian & Sumatif (STS/SAS).
-   - Terhubung otomatis dengan pengerjaan tugas & Webhook Google Form.
-7. **Daftar Tugas & Webhook Google Form**:
-   - Pembuatan tugas per kelas dengan tautan Google Form resmi.
-   - Penilaian otomatis melalui Webhook Google Form server (`/api/webhooks/google-form`).
-8. **Buku Digital**:
-   - Media belajar siswa berbasis Web View/Embedded PDF per kelas.
-9. **Temuan Khusus**:
-   - Catatan bimbingan konseling dan pengembangan karakter siswa.
-10. **Kalender Akademik Indonesia**:
-    - Agenda sekolah, hari libur nasional, dan jadwal kegiatan akademik.
+## 2. Arsitektur Data, Kompatibilitas Cloud & Serverless
+- **Penyimpanan Lokal (Local-First Persistence)**:
+  - Cache instan dan penyimpanan offline menggunakan `localStorage` terstruktur via `/src/services/db.ts`.
+- **Multi-Cloud Database Synchronization**:
+  - **Supabase (PostgreSQL Relational)**: Sinkronisasi dwiarah (*bi-directional*) real-time melalui `/src/services/supabase.ts` dengan dukungan migrasi SQL otomatis dan fungsi pemutusan koneksi (*disconnect*) instan.
+  - **Firebase Firestore (NoSQL Cloud)**: Sinkronisasi paralel ke koleksi Firestore dengan proteksi rules dan mode fallback REST API.
+- **Serverless & Standalone Backend Architecture**:
+  - **Vercel Serverless Entry**: `/api/index.ts` mengekspor Express `apiApp` yang dioptimalkan untuk hosting serverless di Vercel.
+  - **Standalone Mode**: `server.ts` menjalankan server Express terpadu (Port 3000) dengan middleware Vite saat di lingkungan lokal atau container Cloud Run.
+  - **Fallback Cerdas**: Seluruh endpoint webhook dan API sinkronisasi menangani kondisi offline/unconfigured secara graceful tanpa menyebabkan crash.
 
 ---
 
-## 4. Aturan Pemeliharaan & Kode
-- **Terminologi Bahasa Indonesia**: Menggunakan istilah konsisten (`guru`, `siswa`, `tugas`, `sekolah`).
-- **Port Ingress**: Dev server berjalan pada Port 3000.
-- **Satu Sumber Kebenaran Data**: Semua operasi data lokal menggunakan `/src/services/db.ts`.
+## 3. Struktur Modul & Pembaruan Terkini
+1. **AI Pembuat Soal Terpadu (Unified AI Generator & Automation)**:
+   - Pembuatan soal pilihan ganda, isian, dan uraian berbasis AI Google Gemini.
+   - Integrasi langsung script otomatisasi **Google Apps Script** dan **Webhook Receiver** dalam satu tampilan terpadu tanpa menu terpisah.
+2. **AI Asisten Pedagogi & Perangkat Ajar**:
+   - Generator TP, ATP, Promes, Prota, dan Modul Ajar Kurikulum Merdeka.
+   - AI Tutor Guru untuk konsultasi strategi pembelajaran dan diferensiasi kelas.
+3. **Manajemen Akademik & Presensi Digital**:
+   - Pencatatan kehadiran harian (Hadir, Sakit, Izin, Alpa) dengan kalkulasi persentase otomatis dan ekspor PDF/Excel.
+4. **Matriks Penilaian Kurikulum Merdeka**:
+   - Penilaian Formatif, Sumatif Lingkup Materi, dan Sumatif Akhir Semester (SAS) yang terhubung langsung dengan pencetakan Rapor Digital.
+5. **Manajemen Master Data & Kelas**:
+   - Profil Sekolah, Direktori Guru & NIP, Data Siswa (NISN/NIS), dan Peta Rombel Kelas.
+6. **Buku Digital & LKPD**:
+   - Repositori materi bacaan dan LKPD interaktif berbasis PDF viewer per kelas.
+7. **Kalender Pendidikan Indonesia**:
+   - Jadwal kegiatan akademik dan hari libur nasional dengan opsi ekspor ke Google Calendar.
+8. **Pusat Pengaturan & Keandalan Koneksi**:
+   - Tombol *Disconnect* dan *Reset* yang responsif tanpa hambatan dialog browser di seluruh antarmuka.
+
+---
+
+## 4. Aturan Pemeliharaan & Standar Kode
+- **Bahasa & Terminologi**: Menggunakan istilah baku Bahasa Indonesia untuk seluruh entitas domain pendidikan (`guru`, `siswa`, `penilaian`, `absensi`, `sekolah`).
+- **Keamanan Kredensial**: Kunci API sensitif (Gemini API, Service Role) selalu diakses di sisi server (`process.env`).
+- **Single Source of Truth**: Seluruh operasi mutasi data lokal dikontrol oleh `db.ts` dengan penyiaran event pembaruan reaktif.
+
+---
+
+## 5. Informasi Pengembang & Distribusi Terbuka
+- **Pengembang Utama**: Kholisul Zainal Asfan Sholikh, S.Pd.
+- **Dukungan AI**: Google AI Studio & Gemini API
+- **Lisensi**: Open Source (Lisensi MIT) — Bebas dikembangkan dan disesuaikan untuk kemajuan ekosistem pendidikan di Indonesia.
