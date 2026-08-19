@@ -172,7 +172,7 @@ Jika aplikasi ini bermanfaat bagi kegiatan belajar mengajar atau institusi sekol
   <br />
   
   <!-- TEMPAT KODE QRIS: Ganti file /public/qris.svg atau upload /public/qris.png -->
-  <img src="public/qris.svg" alt="Kode QRIS Donasi Kholisul Zainal Asfan Sholikh, S.Pd." width="280" style="border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);" onerror="this.onerror=null; this.src='https://placehold.co/300x300/f8fafc/334155?text=TEMPELKAN+GAMBAR+QRIS+DISINI';" />
+  <img src="public/qris.svg" alt="Kode QRIS Donasi Kholisul Zainal Asfan Sholikh, S.Pd." width="280" style="border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);" onerror="this.onerror=null; this.src='(https://github.com/kholisulzainal/kelas-ku-v2.0/blob/main/public/qris.png)';" />
   
   <br /><br />
   
