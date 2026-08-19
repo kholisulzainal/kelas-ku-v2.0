@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Siswa, MataPelajaran, Asesmen, UserRole } from '../types';
+import { isSameClassLevel } from '../utils/classMatcher';
 import * as XLSX from 'xlsx';
 
 interface AsesmenMatrixTableProps {
@@ -41,7 +42,7 @@ export function AsesmenMatrixTable({
   const [siswas, setSiswas] = useState<Siswa[]>(() => db.siswa.getAll());
   const [mapels, setMapels] = useState<MataPelajaran[]>(() => db.mataPelajaran.getAll());
   const [asesmens, setAsesmens] = useState<Asesmen[]>(() => db.asesmen.getAll());
-  const [daftarTugas] = useState(() => db.daftarTugas.getAll());
+  const [daftarTugas, setDaftarTugas] = useState(() => db.daftarTugas.getAll());
 
   const [selectedMapelId, setSelectedMapelId] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -54,6 +55,7 @@ export function AsesmenMatrixTable({
     setSiswas(db.siswa.getAll());
     setMapels(db.mataPelajaran.getAll());
     setAsesmens(db.asesmen.getAll());
+    setDaftarTugas(db.daftarTugas.getAll());
   };
 
   useEffect(() => {
@@ -62,28 +64,65 @@ export function AsesmenMatrixTable({
     return () => window.removeEventListener('supabase-data-updated', handleSync);
   }, []);
 
-  // Filter students based on active class filter
+  // Filter students based on active class filter and role permissions
+  const effectiveClass = isRealWaliKelas && loggedInGuru?.kelasWali
+    ? loggedInGuru.kelasWali
+    : activeClassFilter;
+
   const filteredStudents = siswas.filter(s => {
-    const matchClass = activeClassFilter === 'Semua' || s.kelas === activeClassFilter;
+    const matchClass = effectiveClass === 'Semua' || isSameClassLevel(s.kelas, effectiveClass);
     const matchSearch = !searchQuery.trim() ||
       s.namaSiswa.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.nisn.includes(searchQuery);
     return matchClass && matchSearch;
   });
 
-  // All subjects allowed for this user role
+  // All subjects allowed for this user role with strict isolation
   const availableMapels = mapels.filter(m => {
+    if (currentRole === 'operator') return true;
+
+    if (isRealWaliKelas && loggedInGuru?.kelasWali) {
+      // Wali Kelas: can access subjects of their own homeroom class or subjects taught by them
+      const isMyClassMapel = isSameClassLevel(m.kelas, loggedInGuru.kelasWali);
+      const isTaughtByMe = m.guruPengampuId === loggedInUserId || m.guruPengampuId === loggedInGuru?.id;
+      return isMyClassMapel || isTaughtByMe;
+    }
+
     if (isGuruMapel || (currentRole === 'guru' && !isCurrentGuruWaliKelas)) {
+      if (m.guruPengampuId && (m.guruPengampuId === loggedInUserId || m.guruPengampuId === loggedInGuru?.id)) {
+        return true;
+      }
       if (myMapelIds && myMapelIds.length > 0) {
         return myMapelIds.includes(m.id);
       }
-      if (loggedInGuru?.mataPelajaranUtama) {
-        const lowerSubject = m.namaMapel.toLowerCase();
-        const lowerGuruMapel = loggedInGuru.mataPelajaranUtama.toLowerCase();
-        return m.guruPengampuId === loggedInUserId || m.guruPengampuId === loggedInGuru.id || lowerSubject.includes(lowerGuruMapel);
+      const guruSubject = (loggedInGuru?.mataPelajaranUtama || '').toLowerCase().trim();
+      const guruName = (loggedInGuru?.namaGuru || '').toLowerCase().trim();
+      const mapelName = (m.namaMapel || '').toLowerCase().trim();
+
+      // Check PJOK / Penjas / Olahraga
+      const isGuruPjok = guruSubject.includes('pjok') || guruSubject.includes('penjas') || guruSubject.includes('olahraga') || guruSubject.includes('jasmani') || guruName.includes('pjok') || guruName.includes('penjas');
+      const isMapelPjok = mapelName.includes('pjok') || mapelName.includes('penjas') || mapelName.includes('olahraga') || mapelName.includes('jasmani');
+      if (isGuruPjok) return isMapelPjok;
+
+      // Check PAI / Agama
+      const isGuruPai = guruSubject.includes('pai') || guruSubject.includes('agama') || guruSubject.includes('islam') || guruName.includes('pai') || guruName.includes('agama');
+      const isMapelPai = mapelName.includes('pai') || mapelName.includes('agama') || mapelName.includes('islam');
+      if (isGuruPai) return isMapelPai;
+
+      // Check other subjects
+      if (guruSubject) {
+        if (guruSubject.includes('inggris') && mapelName.includes('inggris')) return true;
+        if (guruSubject.includes('jawa') && mapelName.includes('jawa')) return true;
+        if (guruSubject.includes('seni') && mapelName.includes('seni')) return true;
+        if (guruSubject.includes('matematika') && mapelName.includes('matematika')) return true;
+        if ((guruSubject.includes('ipas') || guruSubject.includes('alam')) && (mapelName.includes('ipas') || mapelName.includes('alam'))) return true;
+        if ((guruSubject.includes('pancasila') || guruSubject.includes('pkn')) && (mapelName.includes('pancasila') || mapelName.includes('pkn'))) return true;
+        if (guruSubject.includes('indonesia') && mapelName.includes('indonesia')) return true;
+        return mapelName.includes(guruSubject) || guruSubject.includes(mapelName);
       }
-      return m.guruPengampuId === loggedInUserId || m.guruPengampuId === loggedInGuru?.id;
+      return false;
     }
+
     return true;
   });
 
@@ -105,28 +144,46 @@ export function AsesmenMatrixTable({
     }
   }, [filteredMapels, daftarTugas]);
 
-  // Matrix cell getter
+  // Matrix cell getter: strictly gets the score for a specific cell without arbitrary index fallbacks
   const getNilaiValue = (siswaId: string, mapelId: string, colName: string, colIndex: number = 0): number | '' => {
+    const studentObj = siswas.find(s => s.id === siswaId);
+    const candidateIds = Array.from(new Set([
+      siswaId,
+      studentObj?.email?.toLowerCase(),
+      studentObj?.nisn
+    ].filter(Boolean) as string[]));
+
+    const formatNilai = (val: any): number | '' => {
+      if (val === undefined || val === null || val === '') return '';
+      let num = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^\d.,]/g, '').replace(',', '.'));
+      if (isNaN(num)) return '';
+      if (num > 0 && num <= 1) num = Math.round(num * 100);
+      return Math.min(100, Math.max(0, Math.round(num)));
+    };
+
     // 1. Check exact namaPenilaian match (e.g. 'T1', 'T2', 'Kuis/STS')
     const matchExact = asesmens.find(
-      a => a.siswaId === siswaId && a.mapelId === mapelId && a.namaPenilaian === colName
+      a => candidateIds.includes(a.siswaId) && a.mapelId === mapelId && a.namaPenilaian === colName
     );
     if (matchExact !== undefined && matchExact.nilai !== undefined && matchExact.nilai !== null) {
-      return matchExact.nilai;
+      return formatNilai(matchExact.nilai);
     }
 
-    // 2. If checking for T1, T2, T3 etc., also check if there is an assignment grade matching that index or task title
+    // 2. If checking for Kuis/STS, also check standard sts assessment types
+    if (colName === 'Kuis/STS') {
+      const stsMatch = asesmens.find(
+        a => candidateIds.includes(a.siswaId) && a.mapelId === mapelId && (a.tipe === 'sts' || a.namaPenilaian.toLowerCase() === 'sts')
+      );
+      if (stsMatch !== undefined && stsMatch.nilai !== undefined && stsMatch.nilai !== null) {
+        return formatNilai(stsMatch.nilai);
+      }
+      return '';
+    }
+
+    // 3. If checking for T1, T2, T3 etc. and there is a specific task linked
     if (colName.startsWith('T')) {
       const subjectTasks = daftarTugas.filter(t => t.mapelId === mapelId);
       const targetTask = subjectTasks[colIndex];
-
-      // Find student candidate IDs
-      const studentObj = siswas.find(s => s.id === siswaId);
-      const candidateIds = Array.from(new Set([
-        siswaId,
-        studentObj?.email?.toLowerCase(),
-        studentObj?.nisn
-      ].filter(Boolean) as string[]));
 
       if (targetTask) {
         // Find score in asesmens by task title OR task ID
@@ -134,7 +191,7 @@ export function AsesmenMatrixTable({
           a => candidateIds.includes(a.siswaId) && a.mapelId === mapelId && (a.namaPenilaian === targetTask.judulTugas || a.id.includes(targetTask.id))
         );
         if (matchTask !== undefined && matchTask.nilai !== undefined && matchTask.nilai !== null) {
-          return matchTask.nilai;
+          return formatNilai(matchTask.nilai);
         }
 
         // Check tugas_siswa table directly for this task & student
@@ -142,39 +199,16 @@ export function AsesmenMatrixTable({
         const tsMatch = allTs.find(
           ts => ts.tugasId === targetTask.id && candidateIds.includes(ts.siswaId) && (ts.score != null || ts.nilai != null)
         );
-        if (tsMatch) {
-          return tsMatch.score ?? tsMatch.nilai ?? '';
+        if (tsMatch && (tsMatch.score != null || tsMatch.nilai != null)) {
+          return formatNilai(tsMatch.score ?? tsMatch.nilai);
         }
-      } else {
-        // Fallback: Check general asesmen at index
-        const mapelAsesmens = asesmens.filter(a => candidateIds.includes(a.siswaId) && a.mapelId === mapelId);
-        if (mapelAsesmens[colIndex] && mapelAsesmens[colIndex].nilai != null) {
-          return mapelAsesmens[colIndex].nilai;
-        }
-      }
-    }
-
-    // 3. If checking for Kuis/STS
-    if (colName === 'Kuis/STS') {
-      const studentObj = siswas.find(s => s.id === siswaId);
-      const candidateIds = Array.from(new Set([
-        siswaId,
-        studentObj?.email?.toLowerCase(),
-        studentObj?.nisn
-      ].filter(Boolean) as string[]));
-
-      const stsMatch = asesmens.find(
-        a => candidateIds.includes(a.siswaId) && a.mapelId === mapelId && (a.tipe === 'sts' || a.namaPenilaian === 'Kuis/STS' || a.namaPenilaian.toLowerCase().includes('kuis') || a.namaPenilaian.toLowerCase().includes('sts'))
-      );
-      if (stsMatch !== undefined && stsMatch.nilai !== undefined && stsMatch.nilai !== null) {
-        return stsMatch.nilai;
       }
     }
 
     return '';
   };
 
-  // Matrix cell handler (updates state & db in real time)
+  // Matrix cell handler (updates state & db in real time with clean deletion support)
   const handleScoreChange = (
     siswaId: string,
     mapelId: string,
@@ -183,7 +217,6 @@ export function AsesmenMatrixTable({
     valStr: string,
     colIndex?: number
   ) => {
-    const num = parseInt(valStr, 10);
     const student = siswas.find(s => s.id === siswaId);
     const candidateIds = Array.from(new Set([
       siswaId,
@@ -191,21 +224,51 @@ export function AsesmenMatrixTable({
       student?.nisn
     ].filter(Boolean) as string[]));
 
-    const existing = asesmens.find(
-      a => candidateIds.includes(a.siswaId) && a.mapelId === mapelId && a.namaPenilaian === namaPenilaian
-    );
+    const subjectTasks = daftarTugas.filter(t => t.mapelId === mapelId);
+    const targetTask = (colIndex !== undefined && namaPenilaian.startsWith('T')) ? subjectTasks[colIndex] : undefined;
 
-    if (isNaN(num) || valStr === '') {
-      if (existing) {
-        db.asesmen.delete(existing.id);
-        refreshData();
+    // Handle deletion / empty input
+    if (valStr.trim() === '') {
+      // 1. Delete matching assessments from asesmens
+      const toDeleteAsesmens = asesmens.filter(a => {
+        if (!candidateIds.includes(a.siswaId) || a.mapelId !== mapelId) return false;
+        if (a.namaPenilaian === namaPenilaian) return true;
+        if (namaPenilaian === 'Kuis/STS' && (a.tipe === 'sts' || a.namaPenilaian.toLowerCase() === 'sts')) return true;
+        if (targetTask && (a.namaPenilaian === targetTask.judulTugas || a.id.includes(targetTask.id))) return true;
+        return false;
+      });
+
+      toDeleteAsesmens.forEach(a => db.asesmen.delete(a.id));
+
+      // 2. Also clear tugas_siswa if targetTask exists
+      if (targetTask) {
+        const matchingTs = db.tugasSiswa.getAll().filter(
+          ts => ts.tugasId === targetTask.id && candidateIds.includes(ts.siswaId)
+        );
+        matchingTs.forEach(ts => db.tugasSiswa.delete(ts.id));
       }
+
+      refreshData();
+      window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'asesmen' } }));
       return;
     }
 
+    const num = parseInt(valStr, 10);
+    if (isNaN(num)) return;
+
     const cleanScore = Math.min(100, Math.max(0, num));
+
+    // Find existing assessment for this cell
+    const existing = asesmens.find(a => {
+      if (!candidateIds.includes(a.siswaId) || a.mapelId !== mapelId) return false;
+      if (a.namaPenilaian === namaPenilaian) return true;
+      if (namaPenilaian === 'Kuis/STS' && (a.tipe === 'sts' || a.namaPenilaian.toLowerCase() === 'sts')) return true;
+      if (targetTask && (a.namaPenilaian === targetTask.judulTugas || a.id.includes(targetTask.id))) return true;
+      return false;
+    });
+
     const updatedAsesmen: Asesmen = {
-      id: existing ? existing.id : `asm-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: existing ? existing.id : `asm-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
       siswaId,
       mapelId,
       tipe,
@@ -219,37 +282,49 @@ export function AsesmenMatrixTable({
     db.asesmen.upsert(updatedAsesmen);
 
     // Also update tugas_siswa if there is a matching task at this column index
-    if (colIndex !== undefined && namaPenilaian.startsWith('T')) {
-      const subjectTasks = daftarTugas.filter(t => t.mapelId === mapelId);
-      const targetTask = subjectTasks[colIndex];
-      if (targetTask) {
-        const existingTs = db.tugasSiswa.getAll().find(
-          ts => ts.tugasId === targetTask.id && candidateIds.includes(ts.siswaId)
-        );
-        db.tugasSiswa.upsert({
-          id: existingTs?.id || `ts-${targetTask.id}-${siswaId}`,
-          tugasId: targetTask.id,
-          siswaId: siswaId,
-          statusPengerjaan: true,
-          status: 'SELESAI',
-          score: cleanScore,
-          nilai: cleanScore,
-          submittedAt: existingTs?.submittedAt || new Date().toISOString(),
-          tanggalDikerjakan: existingTs?.tanggalDikerjakan || new Date().toISOString().split('T')[0],
-          umpanBalik: 'Nilai diinput oleh guru dari Tabel Asesmen.'
-        });
-      }
+    if (targetTask) {
+      const existingTs = db.tugasSiswa.getAll().find(
+        ts => ts.tugasId === targetTask.id && candidateIds.includes(ts.siswaId)
+      );
+      db.tugasSiswa.upsert({
+        id: existingTs?.id || `ts-${targetTask.id}-${siswaId}`,
+        tugasId: targetTask.id,
+        siswaId: siswaId,
+        statusPengerjaan: true,
+        status: 'SELESAI',
+        score: cleanScore,
+        nilai: cleanScore,
+        submittedAt: existingTs?.submittedAt || new Date().toISOString(),
+        tanggalDikerjakan: existingTs?.tanggalDikerjakan || new Date().toISOString().split('T')[0],
+        umpanBalik: 'Nilai diinput oleh guru dari Tabel Asesmen.'
+      });
     }
 
     refreshData();
+    window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'asesmen' } }));
   };
 
-  // Calculate average for a student in a specific subject
+  // Calculate average for a student in a specific subject row
   const calculateRowAverage = (siswaId: string, mapelId: string) => {
-    const studentScores = asesmens.filter(a => a.siswaId === siswaId && a.mapelId === mapelId);
-    if (studentScores.length === 0) return 0;
-    const sum = studentScores.reduce((acc, curr) => acc + curr.nilai, 0);
-    return Math.round(sum / studentScores.length);
+    let totalSum = 0;
+    let count = 0;
+
+    for (let i = 0; i < harianColCount; i++) {
+      const val = getNilaiValue(siswaId, mapelId, `T${i + 1}`, i);
+      if (typeof val === 'number') {
+        totalSum += val;
+        count++;
+      }
+    }
+
+    const kuisVal = getNilaiValue(siswaId, mapelId, 'Kuis/STS', 99);
+    if (typeof kuisVal === 'number') {
+      totalSum += kuisVal;
+      count++;
+    }
+
+    if (count === 0) return 0;
+    return Math.round(totalSum / count);
   };
 
   // Export matrix to Excel
@@ -258,11 +333,13 @@ export function AsesmenMatrixTable({
 
     filteredStudents.forEach(s => {
       filteredMapels.forEach(m => {
+        const mapelKkm = Number(m.kkm) || 70;
         const row: any = {
           'Nama Siswa': s.namaSiswa,
           'NISN': s.nisn,
           'Kelas': s.kelas,
-          'Mata Pelajaran': m.namaMapel
+          'Mata Pelajaran': m.namaMapel,
+          'KKM': mapelKkm
         };
 
         // Add Harian columns
@@ -286,7 +363,9 @@ export function AsesmenMatrixTable({
           validCount++;
         }
 
-        row['Rata-Rata Nilai Formatif'] = validCount > 0 ? Math.round(totalSum / validCount) : 0;
+        const avgScore = validCount > 0 ? Math.round(totalSum / validCount) : 0;
+        row['Rata-Rata Nilai Formatif'] = avgScore;
+        row['Status Kelulusan'] = validCount > 0 ? (avgScore >= mapelKkm ? 'TUNTAS' : 'REMEDIAL') : '-';
         exportData.push(row);
       });
     });
@@ -513,9 +592,14 @@ export function AsesmenMatrixTable({
 
                         {/* Kolom 2: Mata Pelajaran */}
                         <td className="px-4 py-2.5 font-semibold border-r border-slate-200 dark:border-slate-800">
-                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                            {mapel.namaMapel}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[11px] font-bold text-slate-700 dark:text-slate-300 w-fit">
+                              {mapel.namaMapel}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-semibold">
+                              KKM: <span className="font-bold text-indigo-600 dark:text-indigo-400">{Number(mapel.kkm) || 70}</span>
+                            </span>
+                          </div>
                         </td>
 
                         {/* Kolom 3: Nilai Harian (T1, T2, T3, T4, T5, ...) */}
@@ -560,17 +644,36 @@ export function AsesmenMatrixTable({
 
                         {/* Kolom 5: Rata-Rata Nilai */}
                         <td className="px-4 py-2.5 text-center bg-emerald-50/40 dark:bg-emerald-950/20 font-mono font-black text-sm">
-                          <span
-                            className={
-                              rowAvg >= 75
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : rowAvg > 0
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-slate-400'
-                            }
-                          >
-                            {rowAvg > 0 ? rowAvg : '-'}
-                          </span>
+                          {(() => {
+                            const currentMapelKkm = Number(mapel.kkm) || 70;
+                            const isPassing = rowAvg >= currentMapelKkm;
+                            return (
+                              <div className="flex flex-col items-center">
+                                <span
+                                  className={
+                                    rowAvg > 0
+                                      ? isPassing
+                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        : 'text-rose-600 dark:text-rose-400'
+                                      : 'text-slate-400'
+                                  }
+                                >
+                                  {rowAvg > 0 ? rowAvg : '-'}
+                                </span>
+                                {rowAvg > 0 && (
+                                  <span
+                                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full mt-0.5 ${
+                                      isPassing
+                                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                                        : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
+                                    }`}
+                                  >
+                                    {isPassing ? 'Tuntas' : 'Remedial'}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     );

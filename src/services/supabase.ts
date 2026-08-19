@@ -269,12 +269,14 @@ CREATE TABLE IF NOT EXISTS public.daftar_tugas (
   judul_tugas text NOT NULL,
   deskripsi text,
   google_form_url text NOT NULL,
+  google_sheet_url text,
   tanggal_diberikan text NOT NULL,
   tenggat_waktu text,
   dibuat_oleh_id text REFERENCES public.guru(id) ON DELETE SET NULL,
   kelas text,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+ALTER TABLE public.daftar_tugas ADD COLUMN IF NOT EXISTS google_sheet_url text;
 
 -- 10. Tugas Siswa
 CREATE TABLE IF NOT EXISTS public.tugas_siswa (
@@ -428,7 +430,7 @@ const VALID_COLUMNS: { [key: string]: string[] } = {
   mata_pelajaran: ['id', 'kode_mapel', 'nama_mapel', 'kkm', 'guru_pengampu_id', 'kelas'],
   jadwal_pelajaran: ['id', 'mapel_id', 'hari', 'jam_mulai', 'jam_selesai', 'ruangan', 'kelas'],
   absensi: ['id', 'siswa_id', 'tanggal', 'status', 'keterangan', 'dicatat_oleh_id'],
-  daftar_tugas: ['id', 'mapel_id', 'judul_tugas', 'deskripsi', 'google_form_url', 'tanggal_diberikan', 'tenggat_waktu', 'dibuat_oleh_id', 'kelas'],
+  daftar_tugas: ['id', 'mapel_id', 'judul_tugas', 'deskripsi', 'google_form_url', 'google_sheet_url', 'tanggal_diberikan', 'tenggat_waktu', 'dibuat_oleh_id', 'kelas'],
   tugas_siswa: ['id', 'tugas_id', 'siswa_id', 'status_pengerjaan', 'status', 'started_at', 'submitted_at', 'score', 'tanggal_dikerjakan', 'nilai', 'umpan_balik'],
   penilaian: ['id', 'siswa_id', 'mapel_id', 'tipe', 'nama_penilaian', 'nilai', 'deskripsi_kompetensi', 'tanggal_penilaian', 'dinilai_oleh_id', 'kelas'],
   asesmen: ['id', 'siswa_id', 'mapel_id', 'tipe', 'nama_penilaian', 'nilai', 'deskripsi_kompetensi', 'tanggal_penilaian', 'dinilai_oleh_id', 'kelas'],

@@ -1,5 +1,6 @@
 import { db } from './db';
-import { getSupabaseClient, syncRowToSupabase } from './supabase';
+import { getSupabaseClient } from './supabase';
+import { syncRow } from './sync.service';
 import { Absensi } from '../types';
 
 export const attendanceService = {
@@ -30,7 +31,7 @@ export const attendanceService = {
   async bulkUpsert(items: Absensi[]): Promise<{ success: boolean }> {
     db.absensi.bulkUpsert(items);
     for (const item of items) {
-      await syncRowToSupabase('absensi', item, true);
+      await syncRow('absensi', item, true);
     }
     return { success: true };
   }

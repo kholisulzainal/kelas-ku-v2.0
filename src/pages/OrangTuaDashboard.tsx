@@ -98,8 +98,8 @@ export function OrangTuaDashboard({ activeTab, parentId }: OrangTuaDashboardProp
         mapel: mapel ? mapel.namaMapel : 'Mapel',
         tipe: g.tipe.toUpperCase(),
         nilai: g.nilai,
-        kkm: mapel ? mapel.kkm : 75,
-        status: g.nilai >= (mapel ? mapel.kkm : 75) ? 'TUNTAS' : 'REMEDIAL',
+        kkm: mapel ? (Number(mapel.kkm) || 70) : 70,
+        status: g.nilai >= (mapel ? (Number(mapel.kkm) || 70) : 70) ? 'TUNTAS' : 'REMEDIAL',
         deskripsi: g.deskripsiKompetensi || '-'
       };
     });
@@ -185,7 +185,7 @@ export function OrangTuaDashboard({ activeTab, parentId }: OrangTuaDashboardProp
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {tasks.filter(t => isTaskForStudentClass(t.kelas, childKelas)).map((t) => {
+            {tasks.filter(t => isTaskForStudentClass(t.kelas, childKelas, t, subjects)).map((t) => {
               const mapel = subjects.find(m => m.id === t.mapelId);
               const submission = childSubmissions.find(sub => sub.tugasId === t.id);
 
@@ -322,7 +322,8 @@ export function OrangTuaDashboard({ activeTab, parentId }: OrangTuaDashboardProp
               {childGrades.length > 0 ? (
                 childGrades.map((g) => {
                   const mapel = subjects.find(m => m.id === g.mapelId);
-                  const isRemedial = g.nilai < (mapel ? mapel.kkm : 75);
+                  const effectiveKkm = mapel ? (Number(mapel.kkm) || 70) : 70;
+                  const isRemedial = g.nilai < effectiveKkm;
                   return (
                     <div key={g.id} className="p-4 space-y-2 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
                       <div className="flex justify-between items-start gap-2">
@@ -355,7 +356,7 @@ export function OrangTuaDashboard({ activeTab, parentId }: OrangTuaDashboardProp
                           {g.tipe}
                         </span>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
-                          KKM: {mapel ? mapel.kkm : 75}
+                          KKM: {effectiveKkm}
                         </span>
                       </div>
 

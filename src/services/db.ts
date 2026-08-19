@@ -197,6 +197,14 @@ const initDatabase = () => {
 
 initDatabase();
 
+export const normalizeScoreNumber = (val: any): number => {
+  if (val === null || val === undefined || val === '') return 0;
+  let num = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^\d.,]/g, '').replace(',', '.'));
+  if (isNaN(num)) return 0;
+  if (num > 0 && num <= 1) num = Math.round(num * 100);
+  return Math.min(100, Math.max(0, Math.round(num)));
+};
+
 export const db = {
   // Utility to clear / reset database
   resetToDefault: () => {
@@ -668,6 +676,10 @@ export const db = {
       localStorage.setItem('tugas_siswa', JSON.stringify(items));
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'tugas_siswa' } }));
     },
+    delete: (id: string) => {
+      const list = db.tugasSiswa.getAll().filter(ts => ts.id !== id);
+      db.tugasSiswa.save(list);
+    },
     upsert: (item: TugasSiswa) => {
       const list = db.tugasSiswa.getAll();
       const finalItem = { ...item, id: item.id || `ts-${Date.now()}` };
@@ -787,8 +799,9 @@ export const db = {
           const siswaList: Siswa[] = db.siswa.getAll();
 
           for (const ts of tugasSiswaList) {
-            const scoreVal = ts.score ?? ts.nilai;
-            if (scoreVal != null) {
+            const rawScoreVal = ts.score ?? ts.nilai;
+            if (rawScoreVal != null) {
+              const scoreVal = normalizeScoreNumber(rawScoreVal);
               const autoId = `as-${ts.tugasId}-${ts.siswaId}`;
               const exists = list.some(p => p.id === autoId || (p.siswaId === ts.siswaId && p.namaPenilaian.includes(ts.tugasId)));
               if (!exists) {
@@ -814,15 +827,17 @@ export const db = {
         console.warn('Error computing automatic Penilaian from tugasSiswa:', err);
       }
 
-      // Deduplicate list: normalize as-gform- and as-form- to standard as- IDs
+      // Deduplicate list: normalize as-gform- and as-form- to standard as- IDs & normalize nilai <= 1
       const uniqueMap = new Map<string, Penilaian>();
       for (const item of list) {
         const normId = (item.id || '').replace('as-gform-', 'as-').replace('as-form-', 'as-');
         const normName = (item.namaPenilaian || '').replace(/^Google Form:\s*/i, '');
+        const normNilai = item.nilai != null ? normalizeScoreNumber(item.nilai) : 0;
         const normItem: Penilaian = {
           ...item,
           id: normId,
-          namaPenilaian: normName
+          namaPenilaian: normName,
+          nilai: normNilai
         };
 
         const existing = uniqueMap.get(normId);

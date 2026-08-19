@@ -90,18 +90,51 @@ function getWibIsoString(date: Date = new Date()): string {
   }
 }
 
-// Helper to parse score text into float
+// Helper to parse score text into integer/float (0-100 scale)
 function parseScoreText(scoreText: any): number {
-  if (typeof scoreText === 'number') return scoreText;
-  if (!scoreText) return 0;
+  if (scoreText === null || scoreText === undefined) return 0;
+  if (typeof scoreText === 'number') {
+    if (isNaN(scoreText)) return 0;
+    if (scoreText > 0 && scoreText <= 1) return Math.min(100, Math.max(0, Math.round(scoreText * 100)));
+    return Math.min(100, Math.max(0, Math.round(scoreText)));
+  }
   
   const str = String(scoreText).trim();
-  // If string contains slash e.g. "80 / 100" or "80/100"
-  const partBeforeSlash = str.split('/')[0] || str;
+  if (!str) return 0;
+
+  // If string contains slash e.g. "95 / 100", "18 / 20", "5 / 7"
+  if (str.includes('/')) {
+    const parts = str.split('/');
+    if (parts.length >= 2) {
+      const numeratorStr = parts[0].replace(/[^\d.,]/g, '').replace(',', '.');
+      const denominatorStr = parts[1].replace(/[^\d.,]/g, '').replace(',', '.');
+      const num = parseFloat(numeratorStr);
+      const den = parseFloat(denominatorStr);
+      if (!isNaN(num) && !isNaN(den) && den > 0) {
+        if (den === 100) return Math.min(100, Math.max(0, Math.round(num)));
+        return Math.min(100, Math.max(0, Math.round((num / den) * 100)));
+      }
+      if (!isNaN(num)) return Math.min(100, Math.max(0, Math.round(num)));
+    }
+  }
+
+  // Handle percentages e.g. "95%"
+  if (str.includes('%')) {
+    const cleaned = str.replace(/[^\d.,]/g, '').replace(',', '.');
+    const parsed = parseFloat(cleaned);
+    if (!isNaN(parsed)) return Math.min(100, Math.max(0, Math.round(parsed)));
+  }
+
   // Clean all characters except digits and decimal dot
-  const cleaned = partBeforeSlash.replace(/[^\d.]/g, '');
+  const cleaned = str.replace(/[^\d.,]/g, '').replace(',', '.');
   const parsed = parseFloat(cleaned);
-  return isNaN(parsed) ? 0 : parsed;
+  if (!isNaN(parsed)) {
+    if (parsed > 0 && parsed <= 1) {
+      return Math.min(100, Math.max(0, Math.round(parsed * 100)));
+    }
+    return Math.min(100, Math.max(0, Math.round(parsed)));
+  }
+  return 0;
 }
 
 // Get Supabase Admin / Service Client or Fallback
@@ -168,62 +201,84 @@ async function startServer() {
       }
 
       // B. Payload Extraction
-      const student_email = req.body?.student_email || req.body?.email || req.body?.nisn || req.body?.student_id;
+      const student_email = req.body?.student_email || req.body?.email || req.body?.student_id;
+      const student_name = req.body?.student_name || req.body?.nama || req.body?.nama_siswa;
+      const student_nisn = req.body?.nisn || req.body?.nis;
       const assignment_id = req.body?.assignment_id || req.body?.tugas_id || req.body?.task_id;
       const score_text = req.body?.score_text ?? req.body?.score ?? req.body?.nilai;
 
-      if (!student_email || !assignment_id || score_text === undefined || score_text === null) {
+      const rawIdentity = student_email || student_nisn || student_name;
+      if (!rawIdentity || !assignment_id || score_text === undefined || score_text === null) {
         return res.status(400).json({
           success: false,
-          error: 'Payload tidak lengkap. Membutuhkan student_email, assignment_id, dan score_text.'
+          error: 'Payload tidak lengkap. Membutuhkan identitas siswa (email/nisn/nama), assignment_id, dan score_text.'
         });
       }
 
       const parsedScore = parseScoreText(score_text);
-      const cleanEmail = String(student_email).trim().toLowerCase();
+      const cleanEmail = String(student_email || '').trim().toLowerCase();
+      const cleanName = String(student_name || '').trim();
+      const cleanNisn = String(student_nisn || '').replace(/\D/g, '').trim();
       const cleanAssignmentId = String(assignment_id).trim();
 
       const customUrl = req.body?.supabase_url || (req.headers['x-supabase-url'] as string);
       const customKey = req.body?.supabase_key || (req.headers['x-supabase-key'] as string);
       const supabase = getAdminSupabaseClient(customUrl, customKey);
       let studentId: string | null = null;
-      let studentName: string | null = null;
+      let studentName: string | null = cleanName || null;
 
-      // C. Cari ID Siswa di tabel `siswa` berdasarkan student_email (case-insensitive)
-      const emailPrefix = cleanEmail.split('@')[0];
+      // C. Cari ID Siswa di tabel `siswa`
+      // 1. By NISN
+      if (cleanNisn.length >= 4) {
+        const { data: nisnStudent } = await supabase
+          .from('siswa')
+          .select('id, nama_siswa, email, nisn, nis, kelas')
+          .eq('nisn', cleanNisn)
+          .maybeSingle();
+        if (nisnStudent && nisnStudent.id) {
+          studentId = nisnStudent.id;
+          studentName = nisnStudent.nama_siswa || studentName;
+        }
+      }
 
-      const { data: siswaData } = await supabase
-        .from('siswa')
-        .select('id, nama_siswa, email, nisn, nis')
-        .or(`email.ilike.${cleanEmail},id.eq.${cleanEmail},id.eq.${emailPrefix},nisn.eq.${emailPrefix}`)
-        .maybeSingle();
+      // 2. By Email
+      if (!studentId && cleanEmail && cleanEmail.includes('@')) {
+        const { data: emailStudent } = await supabase
+          .from('siswa')
+          .select('id, nama_siswa, email, nisn, nis, kelas')
+          .ilike('email', cleanEmail)
+          .maybeSingle();
+        if (emailStudent && emailStudent.id) {
+          studentId = emailStudent.id;
+          studentName = emailStudent.nama_siswa || studentName;
+        }
+      }
 
-      if (siswaData && siswaData.id) {
-        studentId = siswaData.id;
-        studentName = siswaData.nama_siswa || null;
-      } else {
-        // Extra search: check all rows in siswa table for name or partial match
-        const { data: allSiswa } = await supabase.from('siswa').select('id, nama_siswa, email, nisn');
+      // 3. By Name / ID Match
+      if (!studentId) {
+        const { data: allSiswa } = await supabase.from('siswa').select('id, nama_siswa, email, nisn, kelas');
         if (allSiswa && allSiswa.length > 0) {
-          const matched = allSiswa.find(s => 
-            (s.email && s.email.toLowerCase() === cleanEmail) ||
-            (s.id && (s.id.toLowerCase() === cleanEmail || s.id.toLowerCase() === emailPrefix)) ||
-            (s.nisn && s.nisn === emailPrefix) ||
-            (s.nama_siswa && s.nama_siswa.toLowerCase().includes(emailPrefix))
-          );
+          const matched = allSiswa.find(s => {
+            const sName = (s.nama_siswa || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const qName = (cleanName || cleanEmail.split('@')[0]).toLowerCase().replace(/[^a-z0-9]/g, '');
+            const sNisn = String(s.nisn || '').replace(/\D/g, '');
+            return (cleanNisn && sNisn === cleanNisn) ||
+                   (cleanEmail && s.email && s.email.toLowerCase() === cleanEmail) ||
+                   (qName.length >= 3 && (sName === qName || sName.startsWith(qName) || qName.startsWith(sName) || sName.includes(qName)));
+          });
           if (matched) {
             studentId = matched.id;
-            studentName = matched.nama_siswa;
+            studentName = matched.nama_siswa || studentName;
           }
         }
       }
 
-      // Fallback Lanjutan: Jika ID siswa belum ditemukan di database Supabase,
-      // gunakan emailPrefix/cleanEmail sebagai ID siswa agar pengerjaan tetap tercatat
+      // Fallback: Gunakan emailPrefix atau cleanEmail sebagai ID siswa
+      const emailPrefix = cleanEmail ? cleanEmail.split('@')[0] : (cleanNisn || 'siswa-unknown');
       if (!studentId) {
-        studentId = emailPrefix || cleanEmail;
-        studentName = cleanEmail;
-        console.log(`[Webhook Google Form] Menggunakan ID fallback '${studentId}' untuk email '${cleanEmail}'`);
+        studentId = emailPrefix || cleanEmail || 'siswa-1';
+        studentName = cleanName || cleanEmail || 'Siswa Form';
+        console.log(`[Webhook Google Form] Menggunakan ID fallback '${studentId}' untuk nama/email '${studentName}'`);
       }
 
       // Ensure student row exists & update email in `siswa` table
@@ -281,6 +336,23 @@ async function startServer() {
       const targetStudentIds = Array.from(new Set([studentId, emailPrefix, cleanEmail].filter(Boolean)));
 
       for (const targetId of targetStudentIds) {
+        // ATURAN: Jika siswa mengerjakan lebih dari 1 kali, selalu ambil nilai pengerjaan PERTAMA
+        try {
+          const { data: existingTs } = await supabase
+            .from('tugas_siswa')
+            .select('id, score, nilai, status_pengerjaan')
+            .eq('tugas_id', cleanAssignmentId)
+            .eq('siswa_id', targetId)
+            .maybeSingle();
+
+          if (existingTs && (existingTs.score !== null && existingTs.score !== undefined || existingTs.nilai !== null && existingTs.nilai !== undefined)) {
+            console.log(`[Webhook Google Form] Siswa ${targetId} sudah memiliki nilai submission pertama (${existingTs.score ?? existingTs.nilai}). Nilai pengerjaan kedua diabaikan sesuai aturan first-attempt.`);
+            continue;
+          }
+        } catch (checkErr) {
+          console.warn('[Webhook Google Form] Notice on checking existing submission:', checkErr);
+        }
+
         // E. UPSERT ke tabel `tugas_siswa` (Kanonikal Utama)
         let { error: tsError } = await supabase
           .from('tugas_siswa')
@@ -294,7 +366,7 @@ async function startServer() {
             nilai: parsedScore,
             submitted_at: nowIso,
             tanggal_dikerjakan: todayStr,
-            umpan_balik: `Otomatis dikirim via Google Form Webhook pada ${new Date().toLocaleString('id-ID')}`
+            umpan_balik: `Otomatis dikirim via Google Form Webhook (Pengerjaan Pertama) pada ${new Date().toLocaleString('id-ID')}`
           }, { onConflict: 'id' });
 
         if (tsError) {
@@ -475,30 +547,42 @@ async function startServer() {
         });
       }
 
-      // CSV Parser
+      // RFC-4180 Compliant CSV Parser
       const parseCSV = (text: string): string[][] => {
-        const lines = text.split(/\r?\n/);
-        const result: string[][] = [];
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const row: string[] = [];
-          let insideQuote = false;
-          let currentCell = '';
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"') {
-              insideQuote = !insideQuote;
-            } else if (char === ',' && !insideQuote) {
-              row.push(currentCell.replace(/^"|"$/g, '').trim());
-              currentCell = '';
+        const p: string[][] = [];
+        let row: string[] = [];
+        let inQuotes = false;
+        let current = '';
+
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const next = text[i + 1];
+
+          if (char === '"') {
+            if (inQuotes && next === '"') {
+              current += '"';
+              i++;
             } else {
-              currentCell += char;
+              inQuotes = !inQuotes;
             }
+          } else if (char === ',' && !inQuotes) {
+            row.push(current.trim());
+            current = '';
+          } else if ((char === '\r' || char === '\n') && !inQuotes) {
+            if (char === '\r' && next === '\n') i++;
+            row.push(current.trim());
+            current = '';
+            if (row.some(cell => cell.length > 0)) p.push(row);
+            row = [];
+          } else {
+            current += char;
           }
-          row.push(currentCell.replace(/^"|"$/g, '').trim());
-          result.push(row);
         }
-        return result;
+        if (current.length > 0 || row.length > 0) {
+          row.push(current.trim());
+          if (row.some(cell => cell.length > 0)) p.push(row);
+        }
+        return p;
       };
 
       const rows = parseCSV(csvText);
@@ -511,13 +595,43 @@ async function startServer() {
       }
 
       const headers = rows[0].map(h => h.toLowerCase().trim());
-      let scoreIdx = headers.findIndex(h => h.includes('skor') || h.includes('score') || h.includes('nilai') || h.includes('point') || h.includes('poin') || h.includes('total'));
-      
+      let scoreIdx = headers.findIndex(h =>
+        /^(skor|score|nilai|total score|total skor|point|poin)/i.test(h) ||
+        h === 'score' ||
+        h === 'skor' ||
+        h === 'nilai' ||
+        h.includes('score') ||
+        h.includes('skor') ||
+        h.includes('nilai') ||
+        h.includes('point') ||
+        h.includes('poin')
+      );
+
+      const nameIdx = headers.findIndex(h =>
+        h.includes('nama') ||
+        h.includes('name') ||
+        h.includes('siswa') ||
+        h.includes('student') ||
+        h.includes('peserta')
+      );
+
+      const nisnIdx = headers.findIndex(h =>
+        h.includes('nisn') ||
+        h.includes('nis') ||
+        h.includes('nomor induk')
+      );
+
+      const emailIdx = headers.findIndex(h =>
+        h.includes('email') ||
+        h.includes('surel') ||
+        h.includes('mail')
+      );
+
       // Fallback: search row 1 for score pattern if header not found
       if (scoreIdx === -1 && rows[1]) {
         for (let col = 0; col < rows[1].length; col++) {
           const val = rows[1][col];
-          if (val && (val.includes('/') || (!isNaN(Number(val)) && Number(val) <= 100))) {
+          if (val && (val.includes('/ 100') || val.includes('/100') || /^\d+\s*\/\s*\d+$/.test(val))) {
             scoreIdx = col;
             break;
           }
@@ -546,54 +660,63 @@ async function startServer() {
       const syncedDetails: any[] = [];
       const nowIso = getWibIsoString();
       const todayStr = getWibDateString();
+      const processedStudentIds = new Set<string>();
 
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         if (!row || row.length === 0) continue;
 
-        const scoreRaw = row[scoreIdx];
-        const parsedScore = parseScoreText(scoreRaw);
-        if (parsedScore == null) continue;
+        // Extract score strictly from the score column
+        const rawScoreCell = scoreIdx !== -1 ? row[scoreIdx] : '';
+        const parsedScore = parseScoreText(rawScoreCell);
 
-        // Search for student identity across cells
+        const rawNisn = nisnIdx !== -1 ? (row[nisnIdx] || '').trim() : '';
+        const cleanNisn = rawNisn.replace(/\D/g, '');
+
+        const rawName = nameIdx !== -1 ? (row[nameIdx] || '').trim() : '';
+        const cleanName = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        const rawEmail = emailIdx !== -1 ? (row[emailIdx] || '').toLowerCase().trim() : (row.find(c => c && c.includes('@')) || '').toLowerCase().trim();
+
+        // Search for student identity with priority
         let matchedStudent: any = null;
-        let matchedEmail = '';
+        let matchedEmail = rawEmail;
 
-        for (const cell of row) {
-          if (!cell) continue;
-          const cleanCell = cell.toLowerCase().trim();
+        // 1. By NISN
+        if (cleanNisn.length >= 4) {
+          matchedStudent = siswaList.find((s: any) => {
+            const sNisn = String(s.nisn || s.nis || '').replace(/\D/g, '');
+            return sNisn && sNisn === cleanNisn;
+          });
+        }
 
+        // 2. By Email
+        if (!matchedStudent && rawEmail && rawEmail.includes('@')) {
           matchedStudent = siswaList.find((s: any) =>
-            (s.email && s.email.toLowerCase().trim() === cleanCell) ||
-            (s.id && s.id.toLowerCase().trim() === cleanCell) ||
-            (s.nisn && s.nisn.toLowerCase().trim() === cleanCell) ||
-            (s.nama_siswa && s.nama_siswa.toLowerCase().trim() === cleanCell) ||
-            (s.nama_siswa && cleanCell.includes(s.nama_siswa.toLowerCase().trim())) ||
-            (s.nama_siswa && s.nama_siswa.toLowerCase().trim().includes(cleanCell))
+            s.email && s.email.toLowerCase().trim() === rawEmail
           );
+        }
 
-          if (matchedStudent) {
-            if (cleanCell.includes('@')) matchedEmail = cleanCell;
-            break;
-          }
+        // 3. By Name (exact, prefix, substring)
+        if (!matchedStudent && cleanName.length >= 3) {
+          matchedStudent = siswaList.find((s: any) => {
+            const sCleanName = (s.nama_siswa || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            return sCleanName === cleanName ||
+                   sCleanName.startsWith(cleanName) ||
+                   cleanName.startsWith(sCleanName) ||
+                   sCleanName.includes(cleanName) ||
+                   cleanName.includes(sCleanName);
+          });
         }
 
         // Fallback Strategy 1: Search email cell against submissions or students without email
-        if (!matchedStudent) {
-          const emailCell = row.find(c => c && c.includes('@'))?.toLowerCase().trim();
-          if (emailCell) {
-            matchedEmail = emailCell;
-
-            // Check if there is a submission in tugas_siswa for a student
-            if (subList.length > 0) {
-              const subStudentId = subList[0].siswa_id;
-              matchedStudent = siswaList.find((s: any) => s.id === subStudentId || s.nisn === subStudentId);
-            }
-
-            // Fallback: If only 1 student exists or student has no email set, pick student
-            if (!matchedStudent && siswaList.length > 0) {
-              matchedStudent = siswaList.find((s: any) => !s.email || s.email.endsWith('@sd.id')) || siswaList[0];
-            }
+        if (!matchedStudent && rawEmail) {
+          if (subList.length > 0) {
+            const subStudentId = subList[0].siswa_id;
+            matchedStudent = siswaList.find((s: any) => s.id === subStudentId || s.nisn === subStudentId);
+          }
+          if (!matchedStudent && siswaList.length > 0) {
+            matchedStudent = siswaList.find((s: any) => !s.email || s.email.endsWith('@sd.id')) || siswaList[0];
           }
         }
 
@@ -609,6 +732,15 @@ async function startServer() {
 
         if (matchedStudent) {
           const studentId = matchedStudent.id;
+
+          // ATURAN: Jika siswa mengerjakan lebih dari 1 kali, selalu ambil nilai pengerjaan PERTAMA
+          if (processedStudentIds.has(studentId)) {
+            console.log(`[Sync Sheet Scores] Siswa "${matchedStudent.nama_siswa || studentId}" mengerjakan lebih dari sekali. Mengambil nilai submission PERTAMA dan mengabaikan submission berikutnya.`);
+            continue;
+          }
+          processedStudentIds.add(studentId);
+
+          // Update student email in Supabase if matchedEmail is present and student email is empty/different
 
           // Update student email in Supabase if matchedEmail is present and student email is empty/different
           if (matchedEmail && matchedEmail.includes('@') && (!matchedStudent.email || matchedStudent.email !== matchedEmail)) {

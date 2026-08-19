@@ -5,7 +5,7 @@ import { ThemeControlMenu } from './ThemeControlMenu';
 import { db } from '../services/db';
 import { Notifikasi, UserRole } from '../types';
 import { getStoredGoogleUser, saveStoredGoogleUser, saveGoogleToken } from '../services/googleServices';
-import { syncRowToSupabase } from '../services/supabase';
+import { syncRow } from '../services/sync.service';
 
 interface HeaderProps {
   currentRole: UserRole;
@@ -68,7 +68,7 @@ export function Header({ currentRole, currentUserId, onRoleChange, onLogout, onT
       if (student) {
         const updatedSiswa = { ...student, email };
         db.siswa.upsert(updatedSiswa);
-        syncRowToSupabase('siswa', updatedSiswa);
+        syncRow('siswa', updatedSiswa);
       }
     }
 

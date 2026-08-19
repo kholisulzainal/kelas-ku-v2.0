@@ -1,4 +1,5 @@
-import { getSupabaseClient, syncRowToSupabase } from './supabase';
+import { getSupabaseClient } from './supabase';
+import { syncRow } from './sync.service';
 
 export interface AppSettings {
   id: string;
@@ -50,7 +51,7 @@ export const settingsService = {
 
   async updateSettings(settings: AppSettings): Promise<{ success: boolean; error?: string }> {
     localStorage.setItem('app_settings', JSON.stringify(settings));
-    const res = await syncRowToSupabase('application_settings', settings, true);
+    const res = await syncRow('application_settings', settings, true);
     return { success: res.success, error: res.error };
   }
 };

@@ -47,7 +47,6 @@ import {
   ShieldCheck,
   Save
 } from 'lucide-react';
-import { GoogleAppsScriptModal } from '../components/GoogleAppsScriptModal';
 import { AplikasiSetting } from '../components/AplikasiSetting';
 import { BukuDigitalView } from '../components/BukuDigitalView';
 import { AiTutorGuruView } from '../components/AiTutorGuruView';
@@ -57,7 +56,8 @@ import { AsesmenMatrixTable } from '../components/AsesmenMatrixTable';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { db } from '../services/db';
 import { generateStandardMapelCode, extractGradeNumber } from '../utils/mapelUtils';
-import { syncRowToSupabase } from '../services/supabase';
+import { isTaskForTargetClass, isSameClassLevel, extractClassLevel } from '../utils/classMatcher';
+import { syncRow } from '../services/sync.service';
 import { exportToCSV, exportToExcel } from '../utils/export';
 import { sendNewAssignmentEmailAlerts } from '../services/googleWorkspace';
 import { getAccessToken, logoutGoogle } from '../services/googleAuth';
@@ -308,7 +308,6 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   const [isAutoSyncingSheet, setIsAutoSyncingSheet] = useState(false);
   const [tempSheetUrl, setTempSheetUrl] = useState('');
   const [showGFormGuide, setShowGFormGuide] = useState(false);
-  const [showAppsScriptModal, setShowAppsScriptModal] = useState(false);
 
   const handleOpenIngestModal = async (task: DaftarTugas) => {
     setIngestTaskModal(task);
@@ -342,7 +341,9 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
     setAsesmens(freshAsesmens);
 
     const initialScores: { [siswaId: string]: { nilai: string | number; deskripsi: string } } = {};
-    const relevantStudents = siswas.filter(s => activeClassFilter === 'Semua' || s.kelas === activeClassFilter);
+    const relevantStudents = isRealWaliKelas
+      ? siswas.filter(s => s.kelas === loggedInGuru?.kelasWali)
+      : (activeClassFilter === 'Semua' ? siswas : siswas.filter(s => s.kelas === activeClassFilter));
     
     relevantStudents.forEach(s => {
       const existing = freshAsesmens.find(a => 
@@ -351,9 +352,21 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         a.namaPenilaian.includes(task.judulTugas)
       );
       const ts = freshTugasSiswa.find(ts => ts.tugasId === task.id && ts.siswaId === s.id);
-      const realScore = ts?.score ?? ts?.nilai;
+      const rawScore: any = existing ? existing.nilai : (ts?.score ?? ts?.nilai);
+      let realScore: number | string = rawScore != null ? rawScore : '';
+      
+      // Auto-normalize if dirty decimal ratio < 1 exists
+      if (typeof rawScore === 'number' && rawScore > 0 && rawScore <= 1) {
+        realScore = Math.round(rawScore * 100);
+      } else if (typeof rawScore === 'string' && rawScore.trim()) {
+        const num = parseFloat(rawScore.replace(',', '.'));
+        if (!isNaN(num) && num > 0 && num <= 1) {
+          realScore = Math.round(num * 100);
+        }
+      }
+
       initialScores[s.id] = {
-        nilai: existing ? existing.nilai : (realScore != null ? realScore : ''),
+        nilai: realScore !== '' ? realScore : '',
         deskripsi: existing?.deskripsiKompetensi || `Hasil penilaian Kuis Google Form: ${task.judulTugas}`
       };
     });
@@ -373,7 +386,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
     };
 
     db.daftarTugas.upsert(updatedTask);
-    syncRowToSupabase('daftar_tugas', updatedTask, true).catch(err => console.warn('Supabase task sync error:', err));
+    syncRow('daftar_tugas', updatedTask, true).catch(err => console.warn('Task sync error:', err));
     setTugases(db.daftarTugas.getAll());
     setIngestTaskModal(updatedTask);
 
@@ -392,13 +405,23 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   };
 
   const handleSaveIngestScores = (task: DaftarTugas) => {
-    const relevantStudents = siswas.filter(s => activeClassFilter === 'Semua' || s.kelas === activeClassFilter);
+    const relevantStudents = isRealWaliKelas
+      ? siswas.filter(s => s.kelas === loggedInGuru?.kelasWali)
+      : (activeClassFilter === 'Semua' ? siswas : siswas.filter(s => s.kelas === activeClassFilter));
     let savedCount = 0;
+    const nowIso = new Date().toISOString();
+    const todayStr = nowIso.split('T')[0];
 
     relevantStudents.forEach(s => {
       const scoreData = ingestScores[s.id];
       if (scoreData && scoreData.nilai !== '' && !isNaN(Number(scoreData.nilai))) {
-        const numVal = Math.min(100, Math.max(0, Math.round(Number(scoreData.nilai))));
+        let numVal = Number(scoreData.nilai);
+        if (numVal > 0 && numVal <= 1) {
+          numVal = Math.round(numVal * 100);
+        } else {
+          numVal = Math.min(100, Math.max(0, Math.round(numVal)));
+        }
+
         const stdId = `as-${task.id}-${s.id}`;
         const newAsesmen: Asesmen = {
           id: stdId,
@@ -408,7 +431,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
           namaPenilaian: task.judulTugas,
           nilai: numVal,
           deskripsiKompetensi: scoreData.deskripsi || `Hasil penilaian Kuis Google Form: ${task.judulTugas}`,
-          tanggalPenilaian: new Date().toISOString().split('T')[0],
+          tanggalPenilaian: todayStr,
           dinilaiOlehId: currentUser?.id || 'guru-1',
           kelas: s.kelas
         };
@@ -418,14 +441,31 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         db.penilaian.delete(oldGformId);
 
         db.penilaian.upsert(newAsesmen);
+
+        // Also ensure tugasSiswa is synced
+        db.tugasSiswa.upsert({
+          id: `ts-${task.id}-${s.id}`,
+          tugasId: task.id,
+          siswaId: s.id,
+          statusPengerjaan: true,
+          status: 'SELESAI',
+          score: numVal,
+          nilai: numVal,
+          submittedAt: nowIso,
+          tanggalDikerjakan: todayStr,
+          umpanBalik: 'Disinkronkan dari Google Sheet'
+        });
+
         savedCount++;
       }
     });
 
     setAsesmens(db.penilaian.getAll());
+    setTugasSiswa(db.tugasSiswa.getAll());
     window.dispatchEvent(new Event('penilaians-updated'));
     window.dispatchEvent(new Event('asesmens-updated'));
     window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'penilaian' } }));
+    window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'tugas_siswa' } }));
 
     setIngestNotice(`Berhasil memasukkan ${savedCount} nilai siswa ke Data Nilai Asesmen Harian!`);
     setTimeout(() => {
@@ -985,15 +1025,21 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   const currentUser = db.getCurrentUser();
   const isOperator = currentUser.role === 'operator';
   const loggedInUserId = currentUser.id;
-  const loggedInGuru = gurus.find(g => g.id === loggedInUserId);
+  const loggedInGuru = gurus.find(g => g.id === loggedInUserId)
+    || gurus.find(g => g.nip && g.nip === loggedInUserId)
+    || (currentUser.role === 'guru' ? gurus.find(g => g.namaGuru && currentUser.name && g.namaGuru.toLowerCase().includes(currentUser.name.toLowerCase())) : undefined)
+    || (currentUser.role === 'guru' && gurus.length > 0 ? gurus[0] : undefined);
 
   // Real Wali Kelas: is a teacher with homeroom duty, not a "GURU MAPEL"
-  const isRealWaliKelas = !isOperator && loggedInGuru?.isWaliKelas === true && loggedInGuru?.kelasWali !== 'GURU MAPEL' && loggedInGuru?.kelasWali !== '';
+  const isRealWaliKelas = !isOperator && (
+    (loggedInGuru?.isWaliKelas === true && loggedInGuru?.kelasWali !== 'GURU MAPEL' && Boolean(loggedInGuru?.kelasWali)) ||
+    (currentUser.role === 'guru' && Boolean(loggedInGuru?.kelasWali) && !loggedInGuru?.kelasWali?.includes('MAPEL'))
+  );
 
   // Subject Teacher (Guru Mapel): either isWaliKelas is false, or classWali is specifically "GURU MAPEL"
-  const isGuruMapel = !isOperator && (loggedInGuru?.isWaliKelas === false || loggedInGuru?.kelasWali === 'GURU MAPEL');
+  const isGuruMapel = !isOperator && !isRealWaliKelas;
 
-  const isCurrentGuruWaliKelas = isOperator || loggedInGuru?.isWaliKelas === true || loggedInGuru?.id === 'guru-1';
+  const isCurrentGuruWaliKelas = isOperator || isRealWaliKelas || loggedInGuru?.isWaliKelas === true || loggedInGuru?.id === 'guru-1';
 
   const hasExistingAbsensiForDate = absensis.some(a => a.tanggal === absensiTanggal);
   const isAbsensiLocked = hasExistingAbsensiForDate && !isOperator && !isGuruMapel && !isCurrentGuruWaliKelas;
@@ -1323,7 +1369,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       reset({
         kodeMapel: '',
         namaMapel: '',
-        kkm: 75,
+        kkm: 70,
         guruPengampuId: loggedInUserId || gurus[0]?.id || '',
         kelas: defaultKelasMapel
       });
@@ -1402,12 +1448,41 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   } | null>(null);
 
   const myMapels = mapels.filter(m => {
-    if (m.guruPengampuId === loggedInUserId) return true;
-    if (isGuruMapel) {
-      const lowerName = m.namaMapel.toLowerCase();
-      return lowerName.includes('pai') || lowerName.includes('agama') || lowerName.includes('penjas') || lowerName.includes('olahraga') || lowerName.includes('jasmani');
+    if (isOperator) return true;
+    if (m.guruPengampuId && (m.guruPengampuId === loggedInUserId || m.guruPengampuId === loggedInGuru?.id)) {
+      return true;
     }
-    return false;
+    if (isRealWaliKelas && loggedInGuru?.kelasWali) {
+      return isSameClassLevel(m.kelas, loggedInGuru.kelasWali);
+    }
+    if (isGuruMapel || currentUser.role === 'guru') {
+      const guruSubject = (loggedInGuru?.mataPelajaranUtama || '').toLowerCase().trim();
+      const guruName = (loggedInGuru?.namaGuru || currentUser.name || '').toLowerCase().trim();
+      const mapelName = (m.namaMapel || '').toLowerCase().trim();
+
+      // Check PJOK / Penjas / Olahraga
+      const isGuruPjok = guruSubject.includes('pjok') || guruSubject.includes('penjas') || guruSubject.includes('olahraga') || guruSubject.includes('jasmani') || guruName.includes('pjok') || guruName.includes('penjas');
+      const isMapelPjok = mapelName.includes('pjok') || mapelName.includes('penjas') || mapelName.includes('olahraga') || mapelName.includes('jasmani');
+      if (isGuruPjok) return isMapelPjok;
+
+      // Check PAI / Agama
+      const isGuruPai = guruSubject.includes('pai') || guruSubject.includes('agama') || guruSubject.includes('islam') || guruName.includes('pai') || guruName.includes('agama');
+      const isMapelPai = mapelName.includes('pai') || mapelName.includes('agama') || mapelName.includes('islam');
+      if (isGuruPai) return isMapelPai;
+
+      if (guruSubject) {
+        if (guruSubject.includes('inggris') && mapelName.includes('inggris')) return true;
+        if (guruSubject.includes('jawa') && mapelName.includes('jawa')) return true;
+        if (guruSubject.includes('seni') && mapelName.includes('seni')) return true;
+        if (guruSubject.includes('matematika') && mapelName.includes('matematika')) return true;
+        if ((guruSubject.includes('ipas') || guruSubject.includes('alam')) && (mapelName.includes('ipas') || mapelName.includes('alam'))) return true;
+        if ((guruSubject.includes('pancasila') || guruSubject.includes('pkn')) && (mapelName.includes('pancasila') || mapelName.includes('pkn'))) return true;
+        if (guruSubject.includes('indonesia') && mapelName.includes('indonesia')) return true;
+        return mapelName.includes(guruSubject) || guruSubject.includes(mapelName);
+      }
+      return false;
+    }
+    return true;
   });
   const myMapelIds = myMapels.map(m => m.id);
 
@@ -1566,7 +1641,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       id: editingItem?.id || `mapel-${Date.now()}`,
       kodeMapel: validatedKodeMapel,
       namaMapel: data.namaMapel,
-      kkm: Number(data.kkm) || 75,
+      kkm: Number(data.kkm) || 70,
       guruPengampuId: data.guruPengampuId || loggedInUserId || gurus[0]?.id || '',
       kelas: classToAssign
     };
@@ -1661,7 +1736,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       kelas: classToAssign
     };
     db.daftarTugas.upsert(item);
-    syncRowToSupabase('daftar_tugas', item, true).catch(err => console.warn('Supabase task sync error:', err));
+    syncRow('daftar_tugas', item, true).catch(err => console.warn('Task sync error:', err));
     setTugases(db.daftarTugas.getAll());
     setTugasSiswa(db.tugasSiswa.getAll());
     setShowFormModal(false);
@@ -1850,12 +1925,32 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   };
 
   const exportTugasExcel = () => {
-    const formatted = tugases.map((t, idx) => {
+    const filteredTugases = tugases.filter(t => {
+      if (isOperator) {
+        if (activeClassFilter === 'Semua') return true;
+        return isTaskForTargetClass(t, activeClassFilter, mapels);
+      }
+      if (isRealWaliKelas) {
+        const myClass = loggedInGuru?.kelasWali || activeClassFilter;
+        return isTaskForTargetClass(t, myClass, mapels);
+      }
+      if (isGuruMapel) {
+        const isMyMapel = myMapelIds.includes(t.mapelId) || t.dibuatOlehId === loggedInUserId;
+        if (!isMyMapel) return false;
+        if (activeClassFilter === 'Semua') return true;
+        return isTaskForTargetClass(t, activeClassFilter, mapels);
+      }
+      if (activeClassFilter === 'Semua') return true;
+      return isTaskForTargetClass(t, activeClassFilter, mapels);
+    });
+
+    const formatted = filteredTugases.map((t, idx) => {
       const mapel = mapels.find(m => m.id === t.mapelId);
       return {
         no: idx + 1,
         judulTugas: t.judulTugas,
         namaMapel: mapel ? mapel.namaMapel : '-',
+        kelas: t.kelas || (mapel?.kelas || '-'),
         deskripsi: t.deskripsi,
         googleFormUrl: t.googleFormUrl,
         tenggatWaktu: t.tenggatWaktu
@@ -1867,11 +1962,12 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         { key: 'no', label: 'No' },
         { key: 'judulTugas', label: 'Judul Tugas' },
         { key: 'namaMapel', label: 'Mata Pelajaran' },
+        { key: 'kelas', label: 'Kelas' },
         { key: 'deskripsi', label: 'Deskripsi' },
         { key: 'googleFormUrl', label: 'Tautan Google Form' },
         { key: 'tenggatWaktu', label: 'Tenggat Waktu' }
       ],
-      'Data_Daftar_Tugas'
+      `Data_Daftar_Tugas_${isRealWaliKelas ? (loggedInGuru?.kelasWali || '').replace(/\s+/g, '_') : (activeClassFilter === 'Semua' ? 'Semua_Kelas' : activeClassFilter.replace(/\s+/g, '_'))}`
     );
   };
 
@@ -1897,8 +1993,12 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   };
 
   const exportSiswaCSV = () => {
+    const classStudents = isRealWaliKelas
+      ? siswas.filter(s => s.kelas === loggedInGuru?.kelasWali)
+      : (activeClassFilter === 'Semua' ? siswas : siswas.filter(s => s.kelas === activeClassFilter));
+
     exportToCSV(
-      siswas,
+      classStudents,
       [
         { key: 'nisn', label: 'NISN' },
         { key: 'nis', label: 'NIS' },
@@ -1910,7 +2010,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         { key: 'namaIbu', label: 'Nama Ibu' },
         { key: 'noTeleponOrtu', label: 'No Telp Orang Tua' }
       ],
-      'Laporan_Data_Siswa'
+      `Laporan_Data_Siswa_${isRealWaliKelas ? (loggedInGuru?.kelasWali || '').replace(/\s+/g, '_') : (activeClassFilter === 'Semua' ? 'Semua_Kelas' : activeClassFilter.replace(/\s+/g, '_'))}`
     );
   };
 
@@ -2664,7 +2764,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
           if (!namaMapel) return;
 
           let kodeMapel = String(findVal(['kodemapel', 'kode']) || '').trim();
-          const kkm = parseInt(String(findVal(['kkm', 'kkmstandar', 'kriteria']) || '75'), 10) || 75;
+          const kkm = parseInt(String(findVal(['kkm', 'kkmstandar', 'kriteria']) || '70'), 10) || 70;
           const kelompok = String(findVal(['kelompok', 'kategori']) || 'Mata Pelajaran Utama').trim();
           const kelas = String(findVal(['kelas', 'targetkelas']) || (activeClassFilter !== 'Semua' ? activeClassFilter : 'Kelas 4')).trim();
 
@@ -2961,12 +3061,17 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   };
 
   const exportAsesmenExcel = () => {
-    const classStudents = activeClassFilter === 'Semua' 
-      ? siswas 
-      : siswas.filter(s => s.kelas === activeClassFilter);
+    const classStudents = isRealWaliKelas
+      ? siswas.filter(s => s.kelas === loggedInGuru?.kelasWali)
+      : (activeClassFilter === 'Semua' ? siswas : siswas.filter(s => s.kelas === activeClassFilter));
       
     const studentIds = new Set(classStudents.map(s => s.id));
-    let filteredAsesmens = asesmens.filter(a => studentIds.has(a.siswaId));
+    let filteredAsesmens = asesmens.filter(a => {
+      if (!studentIds.has(a.siswaId)) return false;
+      if (isRealWaliKelas) return true;
+      if (isGuruMapel) return myMapelIds.includes(a.mapelId) || a.dinilaiOlehId === loggedInUserId;
+      return true;
+    });
     
     if (filterAsesmenType !== 'all') {
       filteredAsesmens = filteredAsesmens.filter(a => a.tipe === filterAsesmenType);
@@ -2998,7 +3103,8 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       { key: 'deskripsi', label: 'Deskripsi Capaian' }
     ];
 
-    const classNameSuffix = activeClassFilter === 'Semua' ? 'Semua_Kelas' : 'Kelas_' + activeClassFilter.replace(/\s+/g, '_');
+    const targetClass = isRealWaliKelas ? (loggedInGuru?.kelasWali || activeClassFilter) : activeClassFilter;
+    const classNameSuffix = targetClass === 'Semua' ? 'Semua_Kelas' : 'Kelas_' + targetClass.replace(/\s+/g, '_');
     const typeSuffix = filterAsesmenType === 'all' ? 'Semua_Tipe' : filterAsesmenType.toUpperCase();
     
     exportToExcelWithHeader(
@@ -3006,18 +3112,23 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       headers,
       'LAPORAN HASIL ASESMEN KURIKULUM MERDEKA',
       typeSuffix,
-      activeClassFilter,
+      targetClass,
       `Rekap_Asesmen_${classNameSuffix}_${typeSuffix}`
     );
   };
 
   const exportAsesmenPDF = async () => {
-    const classStudents = activeClassFilter === 'Semua' 
-      ? siswas 
-      : siswas.filter(s => s.kelas === activeClassFilter);
+    const classStudents = isRealWaliKelas
+      ? siswas.filter(s => s.kelas === loggedInGuru?.kelasWali)
+      : (activeClassFilter === 'Semua' ? siswas : siswas.filter(s => s.kelas === activeClassFilter));
       
     const studentIds = new Set(classStudents.map(s => s.id));
-    let filteredAsesmens = asesmens.filter(a => studentIds.has(a.siswaId));
+    let filteredAsesmens = asesmens.filter(a => {
+      if (!studentIds.has(a.siswaId)) return false;
+      if (isRealWaliKelas) return true;
+      if (isGuruMapel) return myMapelIds.includes(a.mapelId) || a.dinilaiOlehId === loggedInUserId;
+      return true;
+    });
     
     if (filterAsesmenType !== 'all') {
       filteredAsesmens = filteredAsesmens.filter(a => a.tipe === filterAsesmenType);
@@ -3038,8 +3149,9 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       format: 'a4'
     });
 
+    const targetClass = isRealWaliKelas ? (loggedInGuru?.kelasWali || activeClassFilter) : activeClassFilter;
     const typeLabel = filterAsesmenType === 'all' ? 'SEMUA TIPE' : filterAsesmenType.toUpperCase();
-    await drawSchoolHeader(doc, `REKAPITULASI LAPORAN ASESMEN (${typeLabel})`, isPortrait, activeClassFilter);
+    await drawSchoolHeader(doc, `REKAPITULASI LAPORAN ASESMEN (${typeLabel})`, isPortrait, targetClass);
 
     let headerBgColor: [number, number, number] = [79, 70, 229];
     if (pdfThemeColor === 'emerald') headerBgColor = [5, 150, 105];
@@ -3764,13 +3876,18 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   };
 
   const exportAsesmenCSV = () => {
-    const classStudents = activeClassFilter === 'Semua' 
-      ? siswas 
-      : siswas.filter(s => s.kelas === activeClassFilter);
+    const classStudents = isRealWaliKelas
+      ? siswas.filter(s => s.kelas === loggedInGuru?.kelasWali)
+      : (activeClassFilter === 'Semua' ? siswas : siswas.filter(s => s.kelas === activeClassFilter));
       
     const studentIds = new Set(classStudents.map(s => s.id));
     
-    let filteredAsesmens = asesmens.filter(a => studentIds.has(a.siswaId));
+    let filteredAsesmens = asesmens.filter(a => {
+      if (!studentIds.has(a.siswaId)) return false;
+      if (isRealWaliKelas) return true;
+      if (isGuruMapel) return myMapelIds.includes(a.mapelId) || a.dinilaiOlehId === loggedInUserId;
+      return true;
+    });
     
     if (filterAsesmenType !== 'all') {
       filteredAsesmens = filteredAsesmens.filter(a => a.tipe === filterAsesmenType);
@@ -3790,7 +3907,8 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       };
     });
 
-    const classNameSuffix = activeClassFilter === 'Semua' ? 'Semua_Kelas' : 'Kelas_' + activeClassFilter.replace(/\s+/g, '_');
+    const targetClass = isRealWaliKelas ? (loggedInGuru?.kelasWali || activeClassFilter) : activeClassFilter;
+    const classNameSuffix = targetClass === 'Semua' ? 'Semua_Kelas' : 'Kelas_' + targetClass.replace(/\s+/g, '_');
     const typeSuffix = filterAsesmenType === 'all' ? 'Semua_Tipe' : filterAsesmenType.toUpperCase();
     exportToCSV(
       formatted,
@@ -3808,12 +3926,25 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   };
 
   const exportRekapitulasiCSV = () => {
-    const rekapStudentsFiltered = activeClassFilter === 'Semua' 
+    const targetClass = isRealWaliKelas ? (loggedInGuru?.kelasWali || activeClassFilter) : activeClassFilter;
+    const rekapStudentsFiltered = targetClass === 'Semua' 
       ? siswas 
-      : siswas.filter(s => s.kelas === activeClassFilter);
+      : siswas.filter(s => s.kelas === targetClass);
+
+    const relevantMapelList = isGuruMapel 
+      ? myMapels 
+      : (targetClass === 'Semua' ? mapels : mapels.filter(m => isSameClassLevel(m.kelas, targetClass)));
+    const targetKkm = relevantMapelList.length > 0 
+      ? Math.round(relevantMapelList.reduce((acc, curr) => acc + (Number(curr.kkm) || 70), 0) / relevantMapelList.length)
+      : 70;
 
     const formatted = rekapStudentsFiltered.map((s, idx) => {
-      const studentAsesmens = asesmens.filter(a => a.siswaId === s.id);
+      const studentAsesmens = asesmens.filter(a => {
+        if (a.siswaId !== s.id) return false;
+        if (isRealWaliKelas) return s.kelas === loggedInGuru?.kelasWali || a.dinilaiOlehId === loggedInUserId;
+        if (isGuruMapel) return myMapelIds.includes(a.mapelId) || a.dinilaiOlehId === loggedInUserId;
+        return true;
+      });
       const harian = studentAsesmens.filter(a => a.tipe === 'harian');
       const sts = studentAsesmens.filter(a => a.tipe === 'sts');
       const sas = studentAsesmens.filter(a => a.tipe === 'sas');
@@ -3835,7 +3966,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         avgSas: avgSas || '-',
         avgP5: avgKoku || '-',
         overallAvg: overallAvg || '-',
-        status: overallAvg >= 75 ? 'Tuntas KKM' : 'Belum Tuntas'
+        status: overallAvg >= targetKkm ? 'Tuntas KKM' : 'Belum Tuntas'
       };
     });
 
@@ -3853,12 +3984,22 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         { key: 'overallAvg', label: 'Nilai Rata-rata Akhir' },
         { key: 'status', label: 'Status Kelulusan' }
       ],
-      `Rekapitulasi_Nilai_${activeClassFilter === 'Semua' ? 'Semua_Kelas' : 'Kelas_' + activeClassFilter.replace(' ', '_')}`
+      `Rekapitulasi_Nilai_${targetClass === 'Semua' ? 'Semua_Kelas' : 'Kelas_' + targetClass.replace(' ', '_')}`
     );
   };
 
   const exportTemuanCSV = () => {
-    const formatted = temuanKhusus.map(t => {
+    const filteredTemuan = temuanKhusus.filter(t => {
+      if (isRealWaliKelas) {
+        const student = siswas.find(s => s.id === t.siswaId);
+        return student?.kelas === loggedInGuru?.kelasWali || t.dilaporkanOlehId === loggedInUserId;
+      }
+      if (activeClassFilter === 'Semua') return true;
+      const student = siswas.find(s => s.id === t.siswaId);
+      return student?.kelas === activeClassFilter;
+    });
+
+    const formatted = filteredTemuan.map(t => {
       const siswa = siswas.find(s => s.id === t.siswaId);
       return {
         tanggal: t.tanggal,
@@ -3877,7 +4018,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         { key: 'deskripsi', label: 'Deskripsi Kasus/Temuan' },
         { key: 'tindakanLanjut', label: 'Tindakan Lanjut' }
       ],
-      'Laporan_Temuan_Khusus'
+      `Laporan_Temuan_Khusus_${isRealWaliKelas ? (loggedInGuru?.kelasWali || '').replace(/\s+/g, '_') : (activeClassFilter === 'Semua' ? 'Semua_Kelas' : activeClassFilter.replace(/\s+/g, '_'))}`
     );
   };
 
@@ -5416,14 +5557,6 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
               )}
               <button
                 type="button"
-                onClick={() => setShowAppsScriptModal(true)}
-                className="bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-m3-purple dark:text-purple-300 text-xs font-bold px-3.5 py-2 rounded-full flex items-center gap-1.5 cursor-pointer transition-colors border border-purple-200 dark:border-purple-800/50"
-              >
-                <Code className="w-4 h-4 text-m3-purple" />
-                <span>Skrip Webhook (Tahap 2)</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => setShowGFormGuide(!showGFormGuide)}
                 className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-xs font-bold px-3.5 py-2 rounded-full flex items-center gap-1.5 cursor-pointer transition-colors"
               >
@@ -5496,20 +5629,40 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {tugases
-              .filter(t => isCurrentGuruWaliKelas || myMapelIds.includes(t.mapelId))
+              .filter(t => {
+                if (isOperator) {
+                  if (activeClassFilter === 'Semua') return true;
+                  return isTaskForTargetClass(t, activeClassFilter, mapels);
+                }
+                if (isRealWaliKelas) {
+                  const myClass = loggedInGuru?.kelasWali || activeClassFilter;
+                  return isTaskForTargetClass(t, myClass, mapels);
+                }
+                if (isGuruMapel) {
+                  const isMyMapel = myMapelIds.includes(t.mapelId) || t.dibuatOlehId === loggedInUserId;
+                  if (!isMyMapel) return false;
+                  if (activeClassFilter === 'Semua') return true;
+                  return isTaskForTargetClass(t, activeClassFilter, mapels);
+                }
+                if (activeClassFilter === 'Semua') return true;
+                return isTaskForTargetClass(t, activeClassFilter, mapels);
+              })
               .map((t) => {
               const mapel = mapels.find(m => m.id === t.mapelId);
               // Calculate completions
               const relevantSubmissions = tugasSiswa.filter(ts => {
                 if (ts.tugasId !== t.id) return false;
-                if (activeClassFilter === 'Semua') return true;
                 const student = siswas.find(s => s.id === ts.siswaId);
+                if (isRealWaliKelas) {
+                  return student?.kelas === loggedInGuru?.kelasWali;
+                }
+                if (activeClassFilter === 'Semua') return true;
                 return student?.kelas === activeClassFilter;
               });
               const completedCount = relevantSubmissions.filter(ts => ts.statusPengerjaan).length;
-              const totalCount = activeClassFilter === 'Semua'
-                ? siswas.length
-                : siswas.filter(s => s.kelas === activeClassFilter).length;
+              const totalCount = isRealWaliKelas
+                ? siswas.filter(s => s.kelas === loggedInGuru?.kelasWali).length
+                : (activeClassFilter === 'Semua' ? siswas.length : siswas.filter(s => s.kelas === activeClassFilter).length);
 
               return (
                 <div
@@ -5518,9 +5671,14 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                 >
                   <div>
                     <div className="flex justify-between items-start">
-                      <span className="text-xs font-bold bg-m3-lavender dark:bg-indigo-950/40 text-m3-purple dark:text-indigo-400 px-2.5 py-1 rounded-xl">
-                        {mapel ? mapel.namaMapel : 'Mata Pelajaran'}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold bg-m3-lavender dark:bg-indigo-950/40 text-m3-purple dark:text-indigo-400 px-2.5 py-1 rounded-xl">
+                          {mapel ? mapel.namaMapel : 'Mata Pelajaran'}
+                        </span>
+                        <span className="text-xs font-bold bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 px-2.5 py-1 rounded-xl border border-sky-200/50 dark:border-sky-800/30">
+                          {t.kelas || mapel?.kelas || 'Semua Kelas'}
+                        </span>
+                      </div>
                       <div className="flex gap-1.5">
                         <button
                           id={`edit_tugas_${t.id}`}
@@ -5598,12 +5756,21 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
 
       {/* 8. ASESMEN KURIKULUM MERDEKA */}
       {activeTab === 'asesmen' && (() => {
-        const rekapStudentsFiltered = activeClassFilter === 'Semua' 
-          ? siswas 
-          : siswas.filter(s => s.kelas === activeClassFilter);
+        const rekapStudentsFiltered = isRealWaliKelas
+          ? siswas.filter(s => s.kelas === loggedInGuru?.kelasWali)
+          : (activeClassFilter === 'Semua' ? siswas : siswas.filter(s => s.kelas === activeClassFilter));
 
         const studentStats = rekapStudentsFiltered.map(s => {
-          const studentAsesmens = asesmens.filter(a => a.siswaId === s.id && (isCurrentGuruWaliKelas || myMapelIds.includes(a.mapelId)));
+          const studentAsesmens = asesmens.filter(a => {
+            if (a.siswaId !== s.id) return false;
+            if (isRealWaliKelas) {
+              return s.kelas === loggedInGuru?.kelasWali || a.dinilaiOlehId === loggedInUserId;
+            }
+            if (isGuruMapel) {
+              return myMapelIds.includes(a.mapelId) || a.dinilaiOlehId === loggedInUserId;
+            }
+            return true;
+          });
           const harian = studentAsesmens.filter(a => a.tipe === 'harian');
           const sts = studentAsesmens.filter(a => a.tipe === 'sts');
           const sas = studentAsesmens.filter(a => a.tipe === 'sas');
@@ -5625,9 +5792,16 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
           };
         });
 
+        const relevantMapelList = isGuruMapel
+          ? myMapels
+          : (activeClassFilter === 'Semua' ? mapels : mapels.filter(m => isSameClassLevel(m.kelas, activeClassFilter)));
+        const targetKkm = relevantMapelList.length > 0
+          ? Math.round(relevantMapelList.reduce((acc, curr) => acc + (Number(curr.kkm) || 70), 0) / relevantMapelList.length)
+          : 70;
+
         const validStats = studentStats.filter(st => st.overallAvg > 0);
         const classAvg = validStats.length ? Math.round(validStats.reduce((acc, curr) => acc + curr.overallAvg, 0) / validStats.length) : 0;
-        const aboveKKMCount = validStats.filter(st => st.overallAvg >= 75).length;
+        const aboveKKMCount = validStats.filter(st => st.overallAvg >= targetKkm).length;
         const belowKKMCount = validStats.length - aboveKKMCount;
 
         const bestStudent = validStats.length ? [...validStats].sort((a, b) => b.overallAvg - a.overallAvg)[0] : null;
@@ -5664,10 +5838,14 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
             {/* Sub Tab 1: DAFTAR NILAI (EXCEL MATRIX TABLE TERSTRUKTUR) */}
             {asesmenSubTab === 'daftar' && (
               <AsesmenMatrixTable
-                currentRole="operator"
+                currentRole={currentUser.role}
                 activeClassFilter={activeClassFilter}
                 loggedInUserId={loggedInUserId}
                 isCurrentGuruWaliKelas={isCurrentGuruWaliKelas}
+                isGuruMapel={isGuruMapel}
+                isRealWaliKelas={isRealWaliKelas}
+                loggedInGuru={loggedInGuru}
+                myMapelIds={myMapelIds}
               />
             )}
 
@@ -5714,7 +5892,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                   </div>
 
                   <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-m3-border dark:border-slate-800/80 shadow-sm flex flex-col justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tuntas KKM (≥ 75)</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tuntas KKM (≥ {targetKkm})</span>
                     <div className="flex items-baseline gap-1 mt-2">
                       <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{aboveKKMCount}</span>
                       <span className="text-xs text-slate-400 font-medium">dari {rekapStudentsFiltered.length} Siswa</span>
@@ -5847,6 +6025,23 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {temuanKhusus
               .filter((t) => {
+                if (isOperator) {
+                  if (activeClassFilter === 'Semua') return true;
+                  const student = siswas.find(s => s.id === t.siswaId);
+                  return student?.kelas === activeClassFilter;
+                }
+                if (isRealWaliKelas) {
+                  const student = siswas.find(s => s.id === t.siswaId);
+                  const isForMyClass = student?.kelas === loggedInGuru?.kelasWali;
+                  const isReportedByMe = t.dilaporkanOlehId === loggedInUserId;
+                  return isForMyClass || isReportedByMe;
+                }
+                if (isGuruMapel) {
+                  const student = siswas.find(s => s.id === t.siswaId);
+                  const isReportedByMe = t.dilaporkanOlehId === loggedInUserId;
+                  const matchesClass = activeClassFilter === 'Semua' || student?.kelas === activeClassFilter;
+                  return isReportedByMe || matchesClass;
+                }
                 if (activeClassFilter === 'Semua') return true;
                 const student = siswas.find(s => s.id === t.siswaId);
                 return student?.kelas === activeClassFilter;
@@ -6207,7 +6402,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Target KKM Poin</label>
-                  <input type="number" defaultValue={75} {...register('kkm', { required: true })} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm font-medium" />
+                  <input type="number" defaultValue={70} {...register('kkm', { required: true })} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm font-medium" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Guru Pengampu</label>
@@ -6729,9 +6924,16 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
           };
         });
 
+        const relevantReportMapelList = isGuruMapel
+          ? myMapels
+          : (activeClassFilter === 'Semua' ? mapels : mapels.filter(m => isSameClassLevel(m.kelas, activeClassFilter)));
+        const reportKkm = relevantReportMapelList.length > 0
+          ? Math.round(relevantReportMapelList.reduce((acc, curr) => acc + (Number(curr.kkm) || 70), 0) / relevantReportMapelList.length)
+          : 70;
+
         const validReportStats = reportStatsList.filter(st => st.overallAvg > 0);
         const reportClassAvg = validReportStats.length ? Math.round(validReportStats.reduce((acc, curr) => acc + curr.overallAvg, 0) / validReportStats.length) : 0;
-        const reportAboveKKM = validReportStats.filter(st => st.overallAvg >= 75).length;
+        const reportAboveKKM = validReportStats.filter(st => st.overallAvg >= reportKkm).length;
         const passPercent = reportStudents.length ? Math.round((reportAboveKKM / reportStudents.length) * 100) : 0;
 
         return (
@@ -6835,7 +7037,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                         <td className="border border-slate-300 px-3 py-2 text-center font-mono">{st.avgKoku || '-'}</td>
                         <td className="border border-slate-300 px-3 py-2 text-center font-mono font-bold">{st.overallAvg || '-'}</td>
                         <td className="border border-slate-300 px-3 py-2 text-center font-bold">
-                          {st.overallAvg >= 75 ? (
+                          {st.overallAvg >= reportKkm ? (
                             <span className="text-emerald-700">TUNTAS</span>
                           ) : st.overallAvg > 0 ? (
                             <span className="text-red-600">REMEDIAL</span>
@@ -7434,13 +7636,13 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                 </button>
               </div>
               <p className="text-[10px] text-slate-400 leading-tight">
-                💡 <strong>Cara ambil link:</strong> Buka Google Form Anda → Tab <strong>Jawaban (Responses)</strong> → Klik ikon Google Sheet <strong>'Lihat di Spreadsheet'</strong> → Salin link URL dari address bar dan tempel di sini.
+                💡 <strong>Cara ambil link:</strong> Buka Google Form Anda → Tab <strong>Jawaban (Responses)</strong> → Klik ikon Google Sheet <strong>'Lihat di Spreadsheet'</strong> → Salin link URL dari address bar dan tempel di sini. (<em>Catatan: Jika siswa mengisi lebih dari 1 kali, sistem secara otomatis mengambil nilai pengerjaan <strong>pertama</strong></em>).
               </p>
             </div>
 
             <div className="space-y-3">
               <div className="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                <span>Daftar Siswa Kelas {activeClassFilter}:</span>
+                <span>Daftar Siswa Kelas {isRealWaliKelas ? (loggedInGuru?.kelasWali || activeClassFilter) : activeClassFilter}:</span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -7467,23 +7669,30 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      const relevantStudents = siswas.filter(s => activeClassFilter === 'Semua' || s.kelas === activeClassFilter);
+                      const relevantStudents = isRealWaliKelas
+                        ? siswas.filter(s => s.kelas === loggedInGuru?.kelasWali)
+                        : (activeClassFilter === 'Semua' ? siswas : siswas.filter(s => s.kelas === activeClassFilter));
+                      const targetMapel = mapels.find(m => m.id === ingestTaskModal.mapelId);
+                      const targetKkmVal = Number(targetMapel?.kkm) || 70;
                       const updated = { ...ingestScores };
                       relevantStudents.forEach(s => {
-                        updated[s.id] = { nilai: 80, deskripsi: `Hasil penilaian Kuis Google Form: ${ingestTaskModal.judulTugas}` };
+                        updated[s.id] = { nilai: targetKkmVal, deskripsi: `Hasil penilaian Kuis Google Form: ${ingestTaskModal.judulTugas}` };
                       });
                       setIngestScores(updated);
                     }}
-                    className="text-m3-purple dark:text-indigo-400 font-bold hover:underline cursor-pointer"
+                    className="text-m3-purple dark:text-indigo-400 font-bold hover:underline cursor-pointer text-xs"
                   >
-                    Isi Standar KKM (80)
+                    Isi Standar KKM ({Number(mapels.find(m => m.id === ingestTaskModal.mapelId)?.kkm) || 70})
                   </button>
                 </div>
               </div>
 
               <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
                 {siswas
-                  .filter(s => activeClassFilter === 'Semua' || s.kelas === activeClassFilter)
+                  .filter(s => {
+                    if (isRealWaliKelas) return s.kelas === loggedInGuru?.kelasWali;
+                    return activeClassFilter === 'Semua' || s.kelas === activeClassFilter;
+                  })
                   .map(s => {
                     const val = ingestScores[s.id]?.nilai !== undefined ? ingestScores[s.id].nilai : '';
                     const desc = ingestScores[s.id]?.deskripsi || '';
@@ -7542,13 +7751,6 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
           </div>
         </div>
       )}
-
-      {/* Modal Google Apps Script Integrasi Webhook Tahap 2 */}
-      <GoogleAppsScriptModal
-        isOpen={showAppsScriptModal}
-        onClose={() => setShowAppsScriptModal(false)}
-        tasks={tugases}
-      />
     </div>
   );
 }

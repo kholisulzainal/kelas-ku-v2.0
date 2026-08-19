@@ -425,9 +425,11 @@ REKAPITULASI NILAI ASESMEN & KOMPETENSI:
 
       if (studentGrades.length > 0) {
         studentGrades.forEach((g, index) => {
-          const mapelName = mapels.find(m => m.id === g.mapelId)?.namaMapel || 'Mata Pelajaran';
+          const targetMapel = mapels.find(m => m.id === g.mapelId);
+          const mapelName = targetMapel?.namaMapel || 'Mata Pelajaran';
+          const mapelKkm = Number(targetMapel?.kkm) || 70;
           docContent += `${index + 1}. [${mapelName}] ${g.namaPenilaian}
-   Nilai: ${g.nilai} (KKM: 75)
+   Nilai: ${g.nilai} (KKM: ${mapelKkm})
    Tipe: ${g.tipe.toUpperCase()}
    Keterangan Kompetensi: ${g.deskripsiKompetensi || '-'}\n\n`;
         });
@@ -1255,94 +1257,112 @@ REKAPITULASI NILAI ASESMEN & KOMPETENSI:
 
           {/* Tab 4: Google Forms Sync */}
           {activeTab === 'forms' && (() => {
-            const sbConfig = getSupabaseConfig();
-            const sbUrl = sbConfig.url || 'https://your-supabase-project.supabase.co';
-            const sbKey = sbConfig.anonKey || 'YOUR_SUPABASE_ANON_KEY';
+            const currentAppUrl = typeof window !== 'undefined' ? window.location.origin : 'https://kelasku-app.run.app';
+            const webhookUrl = `${currentAppUrl}/api/webhook/google-form`;
+            const webhookSecret = 'kelasku-secret-key';
 
             const generatedAppsScriptCode = `/**
- * SKRIP AUTOMATION REAL-TIME GOOGLE FORM KE PORTAL KURIKULUM MERDEKA
- * Dibuat Otomatis untuk: ${googleUser?.email || 'Wali Kelas / Guru SD'}
- * --------------------------------------------------------------------
+ * =========================================================================
+ * SKRIP AUTOMATION REAL-TIME GOOGLE FORM KE PORTAL KELAS KU
+ * Aman: Tanpa Kredensial Database Terbuka (Menggunakan Server Webhook Endpoint)
+ * Dibuat Otomatis untuk: ${googleUser?.email || 'Wali Kelas / Guru'}
+ * =========================================================================
  * CARA MEMASANG (HANYA 1 KALI PROSES):
  * 1. Buka Google Form Tugas / Kuis milik Anda.
  * 2. Klik ikon Titik Tiga (⋮) di kanan atas > Pilih "Extensions" > "Apps Script".
  * 3. Hapus seluruh kode bawaan yang ada di editor, lalu Tempel (Paste) kode ini.
- * 4. Klik ikon Jam "Triggers" (Pemicu) di menu bilah kiri (sidebar Apps Script).
- * 5. Klik "Add Trigger" (Tambah Pemicu):
- *    - Choose function to run: onFormSubmit
- *    - Select event source: From form (Dari formulir)
- *    - Select event type: On form submit (Saat kirim formulir)
- * 6. Klik "Save" dan berikan izin akses (Authorize). SELESAI!
+ * 4. Simpan & jalankan "createTrigger()" satu kali untuk mengaktifkan otomatisasi.
  */
+
+var WEBHOOK_URL = ${JSON.stringify(webhookUrl)};
+var WEBHOOK_SECRET = ${JSON.stringify(webhookSecret)};
 
 function onFormSubmit(e) {
   try {
-    var formResponse = e.response;
-    var itemResponses = formResponse.getItemResponses();
-    var respondentEmail = formResponse.getRespondentEmail() || "";
-    
-    var nisn = "";
-    var namaSiswa = "";
-    var skorTotal = 0;
-    
-    // 1. Membaca jawaban item formulir (NISN & Nama)
-    for (var i = 0; i < itemResponses.length; i++) {
-      var itemResp = itemResponses[i];
-      var title = itemResp.getItem().getTitle().toLowerCase();
-      var respVal = itemResp.getResponse();
+    var studentEmail = "";
+    var studentName = "";
+    var studentNisn = "";
+    var scoreText = "";
+
+    // 1. Membaca identitas dari response Google Form
+    if (e && e.response) {
+      if (typeof e.response.getRespondentEmail === "function") {
+        studentEmail = e.response.getRespondentEmail() || "";
+      }
       
-      if (title.indexOf("nisn") !== -1 || title.indexOf("no. induk") !== -1 || title.indexOf("nis") !== -1) {
-        nisn = String(respVal).trim();
+      if (typeof e.response.getItemResponses === "function") {
+        var itemResponses = e.response.getItemResponses();
+        for (var i = 0; i < itemResponses.length; i++) {
+          var itemObj = itemResponses[i];
+          var itemTitle = itemObj.getItem().getTitle().toLowerCase();
+          var respVal = String(itemObj.getResponse() || "").trim();
+
+          if (respVal) {
+            if (itemTitle.indexOf("email") !== -1 || itemTitle.indexOf("surel") !== -1) {
+              if (!studentEmail) studentEmail = respVal;
+            } else if (itemTitle.indexOf("nisn") !== -1 || itemTitle.indexOf("nis") !== -1 || itemTitle.indexOf("nomor induk") !== -1) {
+              if (!studentNisn) studentNisn = respVal;
+            } else if (itemTitle.indexOf("nama") !== -1 || itemTitle.indexOf("siswa") !== -1 || itemTitle.indexOf("peserta") !== -1) {
+              if (!studentName) studentName = respVal;
+            }
+          }
+        }
       }
-      if (title.indexOf("nama") !== -1 || title.indexOf("siswa") !== -1) {
-        namaSiswa = String(respVal).trim();
+
+      // 2. Membaca Skor Kuis Otomatis
+      if (typeof e.response.getGradableItemResponses === "function") {
+        var gradables = e.response.getGradableItemResponses();
+        var totalScore = 0;
+        var hasScore = false;
+        for (var j = 0; j < gradables.length; j++) {
+          var sc = gradables[j].getScore();
+          if (sc !== null && sc !== undefined) {
+            totalScore += sc;
+            hasScore = true;
+          }
+        }
+        if (hasScore) {
+          scoreText = String(totalScore);
+        }
       }
     }
 
-    // 2. Membaca Skor Kuis Otomatis
-    var scoreGrade = formResponse.getGradableItemResponses();
-    if (scoreGrade && scoreGrade.length > 0) {
-      var points = 0;
-      for (var j = 0; j < scoreGrade.length; j++) {
-        points += scoreGrade[j].getScore() || 0;
-      }
-      skorTotal = Math.round(points);
-    } else {
-      skorTotal = 88; // Fallback jika kuis tanpa poin otomatis
-    }
+    studentEmail = String(studentEmail || "").trim();
+    studentName = String(studentName || "").trim();
+    studentNisn = String(studentNisn || "").trim();
+    scoreText = String(scoreText || "100").trim();
 
-    // 3. Menyiapkan Payload Data Asesmen Harian
     var payload = {
-      id: "as-webhook-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
-      nisn: nisn,
-      nama_siswa: namaSiswa,
-      email: respondentEmail,
-      tipe: "harian",
-      nama_penilaian: "Google Form: " + e.source.getTitle(),
-      nilai: skorTotal,
-      deskripsi_kompetensi: "Terima & nilai otomatis via Real-Time Webhook Google Apps Script.",
-      tanggal_penilaian: Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd")
+      "assignment_id": (typeof ASSIGNMENT_ID !== 'undefined' ? ASSIGNMENT_ID : "tugas-otomatis"),
+      "student_email": studentEmail,
+      "student_name": studentName,
+      "nisn": studentNisn,
+      "score_text": scoreText
     };
 
-    // 4. Mengirimkan HTTP POST langsung ke Database Supabase REST API
-    var supabaseUrl = "${sbUrl}/rest/v1/asesmen";
     var options = {
       "method": "post",
       "contentType": "application/json",
       "headers": {
-        "apikey": "${sbKey}",
-        "Authorization": "Bearer ${sbKey}",
-        "Prefer": "return=minimal"
+        "x-webhook-secret": WEBHOOK_SECRET
       },
       "payload": JSON.stringify(payload),
       "muteHttpExceptions": true
     };
 
-    var response = UrlFetchApp.fetch(supabaseUrl, options);
-    Logger.log("Hasil Webhook Sync: " + response.getContentText());
+    var response = UrlFetchApp.fetch(WEBHOOK_URL, options);
+    Logger.log("Status Respon Webhook: " + response.getResponseCode() + " -> " + response.getContentText());
   } catch (err) {
     Logger.log("Error Webhook: " + err.toString());
   }
+}
+
+function createTrigger() {
+  ScriptApp.newTrigger('onFormSubmit')
+    .forForm(FormApp.getActiveForm())
+    .onFormSubmit()
+    .create();
+  Logger.log("Trigger onFormSubmit berhasil dibuat!");
 }`;
 
             return (

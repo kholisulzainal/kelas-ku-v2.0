@@ -1,5 +1,6 @@
 import { db } from './db';
-import { getSupabaseClient, syncRowToSupabase } from './supabase';
+import { getSupabaseClient } from './supabase';
+import { syncRow } from './sync.service';
 import { ProfilSekolah } from '../types';
 
 export const sekolahService = {
@@ -44,7 +45,7 @@ export const sekolahService = {
 
   async updateProfil(profile: ProfilSekolah): Promise<{ success: boolean; error?: string }> {
     db.profilSekolah.update(profile);
-    const res = await syncRowToSupabase('profil_sekolah', profile, true);
+    const res = await syncRow('profil_sekolah', profile, true);
     return { success: res.success, error: res.error };
   },
 

@@ -1,5 +1,6 @@
 import { db } from './db';
-import { getSupabaseClient, syncRowToSupabase, deleteRowFromSupabase } from './supabase';
+import { getSupabaseClient } from './supabase';
+import { syncRow, deleteRow } from './sync.service';
 import { syncGoogleFormScoresFromSheet } from './googleServices';
 import { DaftarTugas, TugasSiswa, AssignmentStatus } from '../types';
 import { getWibDateString, getWibIsoString } from '../utils/dateUtils';
@@ -17,6 +18,7 @@ export const tugasService = {
             judulTugas: t.judul_tugas,
             deskripsi: t.deskripsi || '',
             googleFormUrl: t.google_form_url || '',
+            googleSheetUrl: t.google_sheet_url || t.googleSheetUrl || '',
             tanggalDiberikan: t.tanggal_diberikan,
             tenggatWaktu: t.tenggat_waktu || '',
             dibuatOlehId: t.dibuat_oleh_id || '',
@@ -38,7 +40,7 @@ export const tugasService = {
 
   async upsertDaftarTugas(task: DaftarTugas): Promise<{ success: boolean; error?: string }> {
     db.daftarTugas.upsert(task);
-    const res = await syncRowToSupabase('daftar_tugas', task, true);
+    const res = await syncRow('daftar_tugas', task, true);
     return { success: res.success, error: res.error };
   },
 
@@ -48,7 +50,7 @@ export const tugasService = {
 
   async deleteDaftarTugas(id: string): Promise<{ success: boolean; error?: string }> {
     db.daftarTugas.delete(id);
-    const res = await deleteRowFromSupabase('daftar_tugas', id);
+    const res = await deleteRow('daftar_tugas', id);
     return { success: res.success, error: res.error };
   },
 
@@ -321,7 +323,7 @@ export const tugasService = {
     };
 
     db.tugasSiswa.upsert(sub);
-    syncRowToSupabase('tugas_siswa', sub, true).catch(e => console.warn(e));
+    syncRow('tugas_siswa', sub, true).catch(e => console.warn(e));
 
     return sub;
   },
@@ -380,20 +382,20 @@ export const tugasService = {
       };
 
       db.penilaian.upsert(pnlItem);
-      syncRowToSupabase('penilaian', pnlItem, true).catch(err => console.warn(err));
+      syncRow('penilaian', pnlItem, true).catch(err => console.warn(err));
     }
 
     window.dispatchEvent(new Event('penilaians-updated'));
     window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'tugas_siswa' } }));
 
-    // 2. RUN SUPABASE SYNC AND BACKGROUND SCORE FETCHING ASYNCHRONOUSLY WITHOUT BLOCKING THE UI
+    // 2. RUN BACKGROUND SCORE FETCHING & DATABASE SYNC ASYNCHRONOUSLY WITHOUT BLOCKING THE UI
     (async () => {
       try {
+        // Sync main submission row to active DB
+        await syncRow('tugas_siswa', sub, true).catch(err => console.warn(err));
+
         const client = getSupabaseClient();
         if (!client) return;
-
-        // Sync main submission row to Supabase
-        await syncRowToSupabase('tugas_siswa', sub, true).catch(err => console.warn(err));
 
         // Update all candidate student rows in Supabase to SELESAI
         for (const candId of targetIds) {
@@ -489,12 +491,12 @@ export const tugasService = {
         kelas: student?.kelas || task?.kelas || 'Kelas 4-A'
       };
       db.penilaian.upsert(pnlItem);
-      syncRowToSupabase('penilaian', pnlItem, true).catch(err => console.warn(err));
+      syncRow('penilaian', pnlItem, true).catch(err => console.warn(err));
       window.dispatchEvent(new Event('penilaians-updated'));
       window.dispatchEvent(new CustomEvent('supabase-data-updated', { detail: { tableName: 'penilaian' } }));
     }
 
-    const res = await syncRowToSupabase('tugas_siswa', sub, true);
+    const res = await syncRow('tugas_siswa', sub, true);
     return { success: res.success, error: res.error };
   },
 

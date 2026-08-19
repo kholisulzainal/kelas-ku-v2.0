@@ -1,5 +1,6 @@
 import { db } from './db';
-import { getSupabaseClient, syncRowToSupabase, deleteRowFromSupabase } from './supabase';
+import { getSupabaseClient } from './supabase';
+import { syncRow, deleteRow } from './sync.service';
 import { Guru } from '../types';
 
 export const guruService = {
@@ -34,13 +35,13 @@ export const guruService = {
 
   async upsert(guru: Guru): Promise<{ success: boolean; error?: string }> {
     db.guru.upsert(guru);
-    const res = await syncRowToSupabase('guru', guru, true);
+    const res = await syncRow('guru', guru, true);
     return { success: res.success, error: res.error };
   },
 
   async delete(id: string): Promise<{ success: boolean; error?: string }> {
     db.guru.delete(id);
-    const res = await deleteRowFromSupabase('guru', id);
+    const res = await deleteRow('guru', id);
     return { success: res.success, error: res.error };
   }
 };

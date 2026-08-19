@@ -942,7 +942,7 @@ export async function syncGoogleFormScoresFromSheet(
       };
     }
 
-    // Client-side CSV Fetch
+    // Client-side CSV Fetch & RFC-4180 Parsing
     const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
     const csvRes = await fetch(csvUrl);
     if (!csvRes.ok) {
@@ -954,9 +954,140 @@ export async function syncGoogleFormScoresFromSheet(
     }
 
     const csvText = await csvRes.text();
-    const lines = csvText.split(/\r?\n/);
-    if (lines.length < 2) {
-      return { success: true, syncedCount: 0, message: 'Google Sheet belum memiliki data respon.' };
+    
+    // RFC-4180 Compliant CSV Parser
+    const parseCSV = (text: string): string[][] => {
+      const p: string[][] = [];
+      let row: string[] = [];
+      let inQuotes = false;
+      let current = '';
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+
+        if (char === '"') {
+          if (inQuotes && next === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          row.push(current.trim());
+          current = '';
+        } else if ((char === '\r' || char === '\n') && !inQuotes) {
+          if (char === '\r' && next === '\n') i++;
+          row.push(current.trim());
+          current = '';
+          if (row.some(cell => cell.length > 0)) p.push(row);
+          row = [];
+        } else {
+          current += char;
+        }
+      }
+      if (current.length > 0 || row.length > 0) {
+        row.push(current.trim());
+        if (row.some(cell => cell.length > 0)) p.push(row);
+      }
+      return p;
+    };
+
+    const parseScoreFromCell = (raw: any): number | null => {
+      if (raw === null || raw === undefined) return null;
+      if (typeof raw === 'number') {
+        if (isNaN(raw)) return null;
+        if (raw > 0 && raw <= 1) return Math.min(100, Math.max(0, Math.round(raw * 100)));
+        return Math.min(100, Math.max(0, Math.round(raw)));
+      }
+      const str = String(raw).trim();
+      if (!str) return null;
+
+      if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length >= 2) {
+          const numeratorStr = parts[0].replace(/[^\d.,]/g, '').replace(',', '.');
+          const denominatorStr = parts[1].replace(/[^\d.,]/g, '').replace(',', '.');
+          const num = parseFloat(numeratorStr);
+          const den = parseFloat(denominatorStr);
+          if (!isNaN(num) && !isNaN(den) && den > 0) {
+            if (den === 100) return Math.min(100, Math.max(0, Math.round(num)));
+            return Math.min(100, Math.max(0, Math.round((num / den) * 100)));
+          }
+          if (!isNaN(num)) return Math.min(100, Math.max(0, Math.round(num)));
+        }
+      }
+
+      if (str.includes('%')) {
+        const cleaned = str.replace(/[^\d.,]/g, '').replace(',', '.');
+        const parsed = parseFloat(cleaned);
+        if (!isNaN(parsed)) return Math.min(100, Math.max(0, Math.round(parsed)));
+      }
+
+      const cleaned = str.replace(/[^\d.,]/g, '').replace(',', '.');
+      const parsed = parseFloat(cleaned);
+      if (!isNaN(parsed)) {
+        if (parsed > 0 && parsed <= 1) return Math.min(100, Math.max(0, Math.round(parsed * 100)));
+        return Math.min(100, Math.max(0, Math.round(parsed)));
+      }
+      return null;
+    };
+
+    const rows = parseCSV(csvText);
+    if (rows.length < 2) {
+      return { success: true, syncedCount: 0, message: 'Google Sheet belum memiliki data respon siswa.' };
+    }
+
+    const headers = rows[0].map(h => h.toLowerCase().trim());
+    let scoreIdx = headers.findIndex(h =>
+      /^(skor|score|nilai|total score|total skor|point|poin)/i.test(h) ||
+      h === 'score' ||
+      h === 'skor' ||
+      h === 'nilai' ||
+      h.includes('score') ||
+      h.includes('skor') ||
+      h.includes('nilai') ||
+      h.includes('point') ||
+      h.includes('poin')
+    );
+
+    const nameIdx = headers.findIndex(h =>
+      h.includes('nama') ||
+      h.includes('name') ||
+      h.includes('siswa') ||
+      h.includes('student') ||
+      h.includes('peserta')
+    );
+
+    const nisnIdx = headers.findIndex(h =>
+      h.includes('nisn') ||
+      h.includes('nis') ||
+      h.includes('nomor induk')
+    );
+
+    const emailIdx = headers.findIndex(h =>
+      h.includes('email') ||
+      h.includes('surel') ||
+      h.includes('mail')
+    );
+
+    // Fallback: search row 1 for score pattern if header not found
+    if (scoreIdx === -1 && rows[1]) {
+      for (let col = 0; col < rows[1].length; col++) {
+        const val = rows[1][col];
+        if (val && (val.includes('/ 100') || val.includes('/100') || /^\d+\s*\/\s*\d+$/.test(val))) {
+          scoreIdx = col;
+          break;
+        }
+      }
+    }
+
+    if (scoreIdx === -1) {
+      return {
+        success: false,
+        syncedCount: 0,
+        message: 'Kolom "Skor" / "Nilai" tidak ditemukan pada header Google Sheet.'
+      };
     }
 
     const students = db.siswa.getAll();
@@ -966,56 +1097,65 @@ export async function syncGoogleFormScoresFromSheet(
     let syncedCount = 0;
     const nowIso = getWibIsoString();
     const todayStr = getWibDateString();
+    const processedStudentIds = new Set<string>();
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.trim()) continue;
-      const parts = line.split(',').map(p => p.replace(/^"|"$/g, '').trim());
-      
-      let matchedStudent = null;
-      let scoreNum: number | null = null;
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
 
-      for (const part of parts) {
-        if (!part) continue;
-        const clean = part.toLowerCase();
-        
-        // Check for score pattern (e.g. "80 / 100" or "85")
-        if (clean.includes('/') || (!isNaN(Number(clean)) && Number(clean) <= 100 && Number(clean) >= 0 && scoreNum == null)) {
-          const firstPart = clean.split('/')[0].replace(/[^\d.]/g, '');
-          const parsed = parseFloat(firstPart);
-          if (!isNaN(parsed)) scoreNum = parsed;
-        }
+      const rawScoreCell = scoreIdx !== -1 ? row[scoreIdx] : '';
+      const scoreNum = parseScoreFromCell(rawScoreCell);
+      if (scoreNum === null) continue;
 
-        // Match student
-        if (!matchedStudent) {
-          matchedStudent = students.find(s => 
-            (s.email && s.email.toLowerCase() === clean) ||
-            (s.id && s.id.toLowerCase() === clean) ||
-            (s.nisn && s.nisn === clean) ||
-            (s.namaSiswa && (s.namaSiswa.toLowerCase() === clean || s.namaSiswa.toLowerCase().includes(clean) || clean.includes(s.namaSiswa.toLowerCase())))
-          );
-        }
+      const rawNisn = nisnIdx !== -1 ? (row[nisnIdx] || '').trim() : '';
+      const cleanNisn = rawNisn.replace(/\D/g, '');
+
+      const rawName = nameIdx !== -1 ? (row[nameIdx] || '').trim() : '';
+      const cleanName = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const rawEmail = emailIdx !== -1 ? (row[emailIdx] || '').toLowerCase().trim() : (row.find(c => c && c.includes('@')) || '').toLowerCase().trim();
+
+      let matchedStudent: any = null;
+
+      // 1. By NISN
+      if (cleanNisn.length >= 4) {
+        matchedStudent = students.find(s => {
+          const sNisn = String(s.nisn || '').replace(/\D/g, '');
+          return sNisn && sNisn === cleanNisn;
+        });
       }
 
-      // Fallback matching if student not directly matched by email/name/nisn
-      if (!matchedStudent) {
-        const emailPart = parts.find(p => p && p.includes('@'))?.toLowerCase();
-        const localSubs = db.tugasSiswa.getAll().filter(ts => ts.tugasId === assignmentId);
-        if (localSubs.length > 0) {
-          const subSiswaId = localSubs[0].siswaId;
-          matchedStudent = students.find(s => s.id === subSiswaId || s.nisn === subSiswaId || (emailPart && s.email === emailPart));
-        }
-        if (!matchedStudent && students.length > 0) {
-          matchedStudent = students.find(s => !s.email || s.email.endsWith('@sd.id')) || students[0];
-        }
-
-        // Link student email if email exists in row
-        if (matchedStudent && emailPart) {
-          db.siswa.upsert({ ...matchedStudent, email: emailPart });
-        }
+      // 2. By Email
+      if (!matchedStudent && rawEmail && rawEmail.includes('@')) {
+        matchedStudent = students.find(s => s.email && s.email.toLowerCase().trim() === rawEmail);
       }
 
-      if (matchedStudent && scoreNum != null) {
+      // 3. By Name (exact, prefix, substring)
+      if (!matchedStudent && cleanName.length >= 3) {
+        matchedStudent = students.find(s => {
+          const sCleanName = (s.namaSiswa || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          return sCleanName === cleanName ||
+                 sCleanName.startsWith(cleanName) ||
+                 cleanName.startsWith(sCleanName) ||
+                 sCleanName.includes(cleanName) ||
+                 cleanName.includes(sCleanName);
+        });
+      }
+
+      // Link student email if email exists in row
+      if (matchedStudent && rawEmail && rawEmail.includes('@') && (!matchedStudent.email || matchedStudent.email !== rawEmail)) {
+        db.siswa.upsert({ ...matchedStudent, email: rawEmail });
+      }
+
+      if (matchedStudent) {
+        const studentId = matchedStudent.id;
+
+        // ATURAN: Jika siswa mengerjakan lebih dari 1 kali, selalu ambil nilai pengerjaan PERTAMA
+        if (processedStudentIds.has(studentId)) {
+          continue;
+        }
+        processedStudentIds.add(studentId);
+
         // Save to Local DB tugas_siswa
         const sub = {
           id: `ts-${assignmentId}-${matchedStudent.id}`,
@@ -1027,7 +1167,7 @@ export async function syncGoogleFormScoresFromSheet(
           nilai: scoreNum,
           submittedAt: nowIso,
           tanggalDikerjakan: todayStr,
-          umpanBalik: 'Disinkronkan dari Google Sheet'
+          umpanBalik: 'Disinkronkan dari Google Sheet (Nilai Pengerjaan Pertama)'
         };
         db.tugasSiswa.upsert(sub);
 
