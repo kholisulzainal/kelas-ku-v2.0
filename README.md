@@ -159,7 +159,7 @@ Kontribusi, saran perbaikan, serta *pull request* sangat terbuka bagi seluruh re
 
 ## 7. Pengembang & Dukungan
 
-- **Pengembang Aplikasi**: **Kholisul Zainal Asfan Sholikh, S.Pd.**
+- **Pengembang Aplikasi**: **@kholisulzainal**
 - **Dukungan AI**: **Google AI Studio** & Gemini Generative AI
 
 ---
