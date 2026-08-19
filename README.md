@@ -172,21 +172,13 @@ Jika aplikasi ini bermanfaat bagi kegiatan belajar mengajar atau institusi sekol
   <br />
   
   <!-- TEMPAT KODE QRIS: Ganti file /public/qris.svg atau upload /public/qris.png -->
-  <img src="public/qris.svg" alt="Kode QRIS Donasi Kholisul Zainal Asfan Sholikh, S.Pd." width="280" style="border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);" onerror="this.onerror=null; this.src='(https://github.com/kholisulzainal/kelas-ku-v2.0/blob/main/public/qris.png)';" />
+  <img src="public/qris.png" alt="Kode QRIS Donasi Kholisul Zainal Asfan Sholikh, S.Pd." width="280" style="border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);" onerror="this.onerror=null; this.src='(https://github.com/kholisulzainal/kelas-ku-v2.0/blob/main/public/qris.png)';" />
   
   <br /><br />
   
   **Kholisul Zainal Asfan Sholikh, S.Pd.**  
   *Dukungan Pengembangan Aplikasi Pendidikan Open Source*  
-  
-  <br />
-  
-  ```text
-  [ Panduan Pengisian Kode QRIS ]
-  1. Simpan gambar barcode QRIS Anda dengan nama file 'qris.png' di dalam folder /public/
-     ATAU
-  2. Ganti nilai src pada tag <img> di atas dengan URL gambar QRIS Anda yang sudah diupload online.
-  ```
+
 </div>
 
 ---
