@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { db } from '../services/db';
 import { BukuDigital, UserRole } from '../types';
+import { isSameClassLevel } from '../utils/classMatcher';
 
 // Helper to format Google Drive links or direct image URLs into direct browser-renderable image URLs
 export const formatCoverImageUrl = (url?: string): string => {
@@ -84,8 +85,8 @@ export function BukuDigitalView({ currentRole, currentUserId, studentKelas }: Bu
   const isManageMode = currentRole === 'operator' || currentRole === 'guru';
 
   const [books, setBooks] = useState<BukuDigital[]>(() => db.bukuDigital.getAll());
-  const [mapels] = useState(() => db.mataPelajaran.getAll());
-  const [siswas] = useState(() => db.siswa.getAll());
+  const [mapels, setMapels] = useState(() => db.mataPelajaran.getAll());
+  const [siswas, setSiswas] = useState(() => db.siswa.getAll());
 
   // Detect current student's class if not passed
   const currentStudent = siswas.find(s => s.id === currentUserId);
@@ -122,9 +123,11 @@ export function BukuDigitalView({ currentRole, currentUserId, studentKelas }: Bu
   const [formPenulis, setFormPenulis] = useState('');
   const [formDeskripsi, setFormDeskripsi] = useState('');
 
-  // Re-fetch books on event or mount
+  // Re-fetch books and mapels on event or mount
   const refreshBooks = () => {
     setBooks(db.bukuDigital.getAll());
+    setMapels(db.mataPelajaran.getAll());
+    setSiswas(db.siswa.getAll());
   };
 
   useEffect(() => {
@@ -133,12 +136,67 @@ export function BukuDigitalView({ currentRole, currentUserId, studentKelas }: Bu
     return () => window.removeEventListener('supabase-data-updated', handleUpdate);
   }, []);
 
+  // Compute distinct mapel options strictly isolated per selected class (NO DUPLICATES)
+  const availableMapelOptions = React.useMemo(() => {
+    const names = new Set<string>();
+
+    if (selectedKelas === 'Semua') {
+      // 1. All unique mapel names across the school
+      mapels.forEach(m => {
+        if (m.namaMapel && m.namaMapel.trim()) names.add(m.namaMapel.trim());
+      });
+      books.forEach(b => {
+        if (b.mapelNama && b.mapelNama.trim()) names.add(b.mapelNama.trim());
+      });
+    } else {
+      // 2. Specific class mapels only
+      mapels
+        .filter(m => !m.kelas || m.kelas === 'Semua' || m.kelas === 'Semua Kelas' || isSameClassLevel(m.kelas, selectedKelas))
+        .forEach(m => {
+          if (m.namaMapel && m.namaMapel.trim()) names.add(m.namaMapel.trim());
+        });
+
+      books
+        .filter(b => !b.kelas || b.kelas === 'Semua Kelas' || isSameClassLevel(b.kelas, selectedKelas))
+        .forEach(b => {
+          if (b.mapelNama && b.mapelNama.trim()) names.add(b.mapelNama.trim());
+        });
+    }
+
+    if (names.size === 0) {
+      ['Bahasa Indonesia', 'Matematika', 'Pendidikan Pancasila', 'Ilmu Pengetahuan Alam & Sosial', 'Pendidikan Agama Islam', 'Pendidikan Jasmani Olahraga & Kesehatan', 'Seni Budaya & Prakarya', 'Bahasa Inggris', 'Bahasa Jawa'].forEach(n => names.add(n));
+    }
+
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [selectedKelas, mapels, books]);
+
+  // Compute distinct mapel options for the Add/Edit form based on target class
+  const formMapelOptions = React.useMemo(() => {
+    const names = new Set<string>();
+    mapels
+      .filter(m => !m.kelas || m.kelas === 'Semua' || m.kelas === 'Semua Kelas' || isSameClassLevel(m.kelas, formKelas))
+      .forEach(m => {
+        if (m.namaMapel && m.namaMapel.trim()) names.add(m.namaMapel.trim());
+      });
+
+    if (names.size === 0) {
+      ['Bahasa Indonesia', 'Matematika', 'Pendidikan Pancasila', 'Ilmu Pengetahuan Alam & Sosial', 'Pendidikan Agama Islam', 'Pendidikan Jasmani Olahraga & Kesehatan', 'Seni Budaya & Prakarya', 'Bahasa Inggris', 'Bahasa Jawa'].forEach(n => names.add(n));
+    }
+
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [formKelas, mapels]);
+
+  const handleSelectKelas = (cls: string) => {
+    setSelectedKelas(cls);
+    setSelectedMapel('Semua'); // Reset mapel filter when class changes
+  };
+
   const handleOpenAdd = () => {
     setEditingBookId(null);
     setFormJudul('');
     setFormKelas('Kelas 1');
     setFormKategoriBuku('buku_siswa');
-    setFormMapelNama(mapels[0]?.namaMapel || 'Bahasa Indonesia');
+    setFormMapelNama('Bahasa Indonesia');
     setFormFileUrl('');
     setFormCoverUrl('');
     setFormPenulis('Kementerian Pendidikan & Kebudayaan');
@@ -196,7 +254,7 @@ export function BukuDigitalView({ currentRole, currentUserId, studentKelas }: Bu
     }
   };
 
-  // Filter books with strict role-based access
+  // Filter books with strict role-based access & grade matching
   const filteredBooks = books.filter(b => {
     const bookCategory = b.kategoriBuku || 'buku_siswa';
 
@@ -210,7 +268,7 @@ export function BukuDigitalView({ currentRole, currentUserId, studentKelas }: Bu
       return false;
     }
 
-    const matchKelas = selectedKelas === 'Semua' || b.kelas === 'Semua Kelas' || b.kelas === selectedKelas;
+    const matchKelas = selectedKelas === 'Semua' || b.kelas === 'Semua Kelas' || isSameClassLevel(b.kelas, selectedKelas);
     const matchMapel = selectedMapel === 'Semua' || b.mapelNama.toLowerCase() === selectedMapel.toLowerCase();
     const matchSearch = !searchQuery.trim() ||
       b.judul.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -358,7 +416,7 @@ export function BukuDigitalView({ currentRole, currentUserId, studentKelas }: Bu
             <span className="font-bold text-slate-600 dark:text-slate-300">Pilih Kelas:</span>
             <select
               value={selectedKelas}
-              onChange={(e) => setSelectedKelas(e.target.value)}
+              onChange={(e) => handleSelectKelas(e.target.value)}
               className="bg-transparent font-extrabold text-indigo-600 dark:text-indigo-400 focus:outline-none cursor-pointer"
             >
               <option value="Semua">Semua Kelas</option>
@@ -377,9 +435,9 @@ export function BukuDigitalView({ currentRole, currentUserId, studentKelas }: Bu
               onChange={(e) => setSelectedMapel(e.target.value)}
               className="bg-transparent font-extrabold text-blue-600 dark:text-blue-400 focus:outline-none cursor-pointer"
             >
-              <option value="Semua">Semua Mapel</option>
-              {mapels.map(m => (
-                <option key={m.id} value={m.namaMapel}>{m.namaMapel}</option>
+              <option value="Semua">Semua Mapel ({availableMapelOptions.length})</option>
+              {availableMapelOptions.map(name => (
+                <option key={name} value={name}>{name}</option>
               ))}
             </select>
           </div>
@@ -610,9 +668,9 @@ export function BukuDigitalView({ currentRole, currentUserId, studentKelas }: Bu
                     onChange={(e) => setFormMapelNama(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none"
                   >
-                    {mapels.length > 0 ? (
-                      mapels.map(m => (
-                        <option key={m.id} value={m.namaMapel}>{m.namaMapel}</option>
+                    {formMapelOptions.length > 0 ? (
+                      formMapelOptions.map(name => (
+                        <option key={name} value={name}>{name}</option>
                       ))
                     ) : (
                       <option value="Bahasa Indonesia">Bahasa Indonesia</option>

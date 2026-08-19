@@ -30,7 +30,7 @@ export function ThemeControlMenu({ buttonClassName, showLabel = true }: ThemeCon
   const themeOptions: { id: ThemeMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     {
       id: 'system',
-      label: 'Dapodik (Bawaan)',
+      label: 'Default',
       icon: Laptop
     },
     {

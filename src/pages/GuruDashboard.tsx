@@ -276,6 +276,8 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   const [guruAvatarTab, setGuruAvatarTab] = useState<'boys' | 'girls'>('boys');
   const watchFotoUrl = watch('fotoUrl');
   const watchLogoUrl = watch('logoUrl');
+  const watchKelas = watch('kelas');
+  const watchSiswaId = watch('siswaId');
 
   // Operator credentials custom management states & handlers
   const [opUsername, setOpUsername] = useState(() => db.operatorCredentials.get().username);
@@ -1335,8 +1337,9 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         isWaliKelas: false
       });
     } else if (activeTab === 'tugas_harian') {
-      const defaultMapel = mapels.find(m => isCurrentGuruWaliKelas || m.guruPengampuId === loggedInUserId)?.id || mapels[0]?.id || '';
-      const defaultKelas = activeClassFilter !== 'Semua' ? activeClassFilter : (loggedInGuru?.kelasWali || classList[0] || 'Kelas 1');
+      const defaultKelas = activeClassFilter !== 'Semua' ? activeClassFilter : (loggedInGuru?.kelasWali || classList[0] || 'Kelas 6');
+      const classMatchingMapel = myMapels.find(m => (!m.kelas || m.kelas === 'Semua' || m.kelas === 'Semua Kelas' || isSameClassLevel(m.kelas, defaultKelas)));
+      const defaultMapel = classMatchingMapel?.id || myMapels[0]?.id || '';
       reset({
         judulTugas: '',
         deskripsi: '',
@@ -1347,9 +1350,12 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         kelas: defaultKelas
       });
     } else if (activeTab === 'asesmen') {
-      const filteredSiswa = siswas.filter(s => activeClassFilter === 'Semua' || s.kelas === activeClassFilter);
+      const filteredSiswa = siswas.filter(s => activeClassFilter === 'Semua' || isSameClassLevel(s.kelas, activeClassFilter));
       const defaultSiswaId = filteredSiswa[0]?.id || siswas[0]?.id || '';
-      const defaultMapel = mapels.find(m => isCurrentGuruWaliKelas || m.guruPengampuId === loggedInUserId)?.id || mapels[0]?.id || '';
+      const selectedStudent = siswas.find(s => s.id === defaultSiswaId);
+      const studentClass = selectedStudent?.kelas || activeClassFilter;
+      const classMatchingMapel = myMapels.find(m => (!m.kelas || m.kelas === 'Semua' || m.kelas === 'Semua Kelas' || isSameClassLevel(m.kelas, studentClass)));
+      const defaultMapel = classMatchingMapel?.id || myMapels[0]?.id || '';
       reset({
         siswaId: defaultSiswaId,
         mapelId: defaultMapel,
@@ -1371,9 +1377,11 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         kelas: defaultKelasMapel
       });
     } else if (activeTab === 'jadwal_pelajaran') {
+      const defaultKelas = activeClassFilter !== 'Semua' ? activeClassFilter : (classList[0] || 'Kelas 4');
+      const classMatchingMapel = mapels.find(m => (!m.kelas || m.kelas === 'Semua' || m.kelas === 'Semua Kelas' || isSameClassLevel(m.kelas, defaultKelas)));
       reset({
-        mapelId: mapels[0]?.id || '',
-        kelas: activeClassFilter !== 'Semua' ? activeClassFilter : (classList[0] || 'Kelas 4'),
+        mapelId: classMatchingMapel?.id || mapels[0]?.id || '',
+        kelas: defaultKelas,
         hari: 'Senin',
         jamMulai: '07:30',
         jamSelesai: '09:00',
@@ -1482,6 +1490,73 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
     return true;
   });
   const myMapelIds = myMapels.map(m => m.id);
+
+  // Filtered mapels for Task form with strict class isolation and deduplication
+  const availableMapelsForTask = React.useMemo(() => {
+    const targetClass = watchKelas || (activeClassFilter !== 'Semua' ? activeClassFilter : (loggedInGuru?.kelasWali || classList[0] || 'Kelas 6'));
+    const list = myMapels.filter(m => {
+      if (targetClass && targetClass !== 'Semua' && m.kelas && m.kelas !== 'Semua' && m.kelas !== 'Semua Kelas') {
+        return isSameClassLevel(m.kelas, targetClass);
+      }
+      return true;
+    });
+
+    const seen = new Set<string>();
+    const deduped: typeof list = [];
+    for (const m of list) {
+      const key = `${m.namaMapel.trim().toLowerCase()}__${(m.kelas || '').trim().toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(m);
+      }
+    }
+    return deduped;
+  }, [myMapels, watchKelas, activeClassFilter, loggedInGuru, classList]);
+
+  // Filtered mapels for Jadwal form with strict class isolation and deduplication
+  const availableMapelsForJadwal = React.useMemo(() => {
+    const targetClass = watchKelas || (activeClassFilter !== 'Semua' ? activeClassFilter : (classList[0] || 'Kelas 4'));
+    const list = mapels.filter(m => {
+      if (targetClass && targetClass !== 'Semua' && m.kelas && m.kelas !== 'Semua' && m.kelas !== 'Semua Kelas') {
+        return isSameClassLevel(m.kelas, targetClass);
+      }
+      return true;
+    });
+
+    const seen = new Set<string>();
+    const deduped: typeof list = [];
+    for (const m of list) {
+      const key = `${m.namaMapel.trim().toLowerCase()}__${(m.kelas || '').trim().toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(m);
+      }
+    }
+    return deduped;
+  }, [mapels, watchKelas, activeClassFilter, classList]);
+
+  // Filtered mapels for Asesmen form with strict student & class isolation and deduplication
+  const availableMapelsForAsesmen = React.useMemo(() => {
+    const targetStudent = siswas.find(s => s.id === watchSiswaId);
+    const targetClass = targetStudent?.kelas || (activeClassFilter !== 'Semua' ? activeClassFilter : (loggedInGuru?.kelasWali || ''));
+    const list = myMapels.filter(m => {
+      if (targetClass && targetClass !== 'Semua' && m.kelas && m.kelas !== 'Semua' && m.kelas !== 'Semua Kelas') {
+        return isSameClassLevel(m.kelas, targetClass);
+      }
+      return true;
+    });
+
+    const seen = new Set<string>();
+    const deduped: typeof list = [];
+    for (const m of list) {
+      const key = `${m.namaMapel.trim().toLowerCase()}__${(m.kelas || '').trim().toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(m);
+      }
+    }
+    return deduped;
+  }, [myMapels, siswas, watchSiswaId, activeClassFilter, loggedInGuru]);
 
   const executeDelete = (id: string, type: string) => {
     switch (type) {
@@ -6422,14 +6497,6 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
             {activeTab === 'jadwal_pelajaran' && (
               <form onSubmit={handleSubmit(onSubmitJadwal)} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Pilih Mapel</label>
-                  <select {...register('mapelId', { required: true })} className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white cursor-pointer shadow-xs">
-                    {mapels.map(m => (
-                      <option className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium" key={m.id} value={m.id}>{m.namaMapel} ({m.kelas || 'Semua'})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Kelas</label>
                   <select 
                     disabled={!isOperator} 
@@ -6439,6 +6506,18 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                     {classList.map(cls => (
                       <option className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold" key={cls} value={cls}>{cls}</option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Pilih Mapel</label>
+                  <select {...register('mapelId', { required: true })} className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white cursor-pointer shadow-xs">
+                    {availableMapelsForJadwal.length > 0 ? (
+                      availableMapelsForJadwal.map(m => (
+                        <option className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium" key={m.id} value={m.id}>{m.namaMapel} ({m.kelas || 'Semua Kelas'})</option>
+                      ))
+                    ) : (
+                      <option value="">Tidak ada mapel untuk kelas ini</option>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -6477,13 +6556,30 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
             {activeTab === 'tugas_harian' && (
               <form onSubmit={handleSubmit(onSubmitTugas)} className="space-y-4">
                 <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Target Kelas</label>
+                  <select 
+                    disabled={!isOperator && isRealWaliKelas} 
+                    {...register('kelas', { required: true })} 
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 dark:text-white disabled:opacity-75 disabled:cursor-not-allowed shadow-xs cursor-pointer"
+                  >
+                    {classList.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))}
+                    {isRealWaliKelas && loggedInGuru?.kelasWali && !classList.includes(loggedInGuru.kelasWali) && (
+                      <option key={loggedInGuru.kelasWali} value={loggedInGuru.kelasWali}>{loggedInGuru.kelasWali}</option>
+                    )}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Pilih Mata Pelajaran</label>
-                  <select {...register('mapelId', { required: true })} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm">
-                    {mapels
-                      .filter(m => isCurrentGuruWaliKelas || m.guruPengampuId === loggedInUserId)
-                      .map(m => (
+                  <select {...register('mapelId', { required: true })} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm font-bold">
+                    {availableMapelsForTask.length > 0 ? (
+                      availableMapelsForTask.map(m => (
                         <option key={m.id} value={m.id}>{m.namaMapel}</option>
-                      ))}
+                      ))
+                    ) : (
+                      <option value="">Tidak ada mapel untuk kelas ini</option>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -6540,7 +6636,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Pilih Siswa</label>
                   <select {...register('siswaId', { required: true })} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm">
                     {siswas
-                      .filter(s => activeClassFilter === 'Semua' || s.kelas === activeClassFilter)
+                      .filter(s => activeClassFilter === 'Semua' || isSameClassLevel(s.kelas, activeClassFilter))
                       .map(s => (
                         <option key={s.id} value={s.id}>{s.namaSiswa} ({s.kelas})</option>
                       ))}
@@ -6548,17 +6644,14 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Pilih Mata Pelajaran</label>
-                  <select {...register('mapelId', { required: true })} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm">
-                    {mapels
-                      .filter(m => {
-                        if (isOperator || isRealWaliKelas) return true;
-                        const lowerName = m.namaMapel.toLowerCase();
-                        const isPaiOrPenjas = lowerName.includes('pai') || lowerName.includes('agama') || lowerName.includes('penjas') || lowerName.includes('olahraga') || lowerName.includes('jasmani');
-                        return isPaiOrPenjas || m.guruPengampuId === loggedInUserId;
-                      })
-                      .map(m => (
-                        <option key={m.id} value={m.id}>{m.namaMapel}</option>
-                      ))}
+                  <select {...register('mapelId', { required: true })} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm font-bold">
+                    {availableMapelsForAsesmen.length > 0 ? (
+                      availableMapelsForAsesmen.map(m => (
+                        <option key={m.id} value={m.id}>{m.namaMapel} ({m.kelas || 'Semua Kelas'})</option>
+                      ))
+                    ) : (
+                      <option value="">Tidak ada mapel yang cocok</option>
+                    )}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

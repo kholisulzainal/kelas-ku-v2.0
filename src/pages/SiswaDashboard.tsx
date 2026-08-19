@@ -20,7 +20,7 @@ import { exportToCSV } from '../utils/export';
 import { Absensi, Asesmen, DaftarTugas, TugasSiswa } from '../types';
 import { StudentAssignmentCard } from '../components/StudentAssignmentCard';
 import { BukuDigitalView } from '../components/BukuDigitalView';
-import { isTaskForStudentClass } from '../utils/classMatcher';
+import { isTaskForStudentClass, isSameClassLevel } from '../utils/classMatcher';
 import { tugasService } from '../services/tugas.service';
 
 interface SiswaDashboardProps {
@@ -55,7 +55,7 @@ export function SiswaDashboard({ activeTab, siswaId }: SiswaDashboardProps) {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [avatarTab, setAvatarTab] = useState<'boys' | 'girls'>('boys');
   const siswaKelas = currentSiswa?.kelas || 'Kelas 4';
-  const subjects = db.mataPelajaran.getAll().filter(m => !m.kelas || m.kelas === siswaKelas);
+  const subjects = db.mataPelajaran.getAll().filter(m => !m.kelas || m.kelas === 'Semua' || m.kelas === 'Semua Kelas' || isSameClassLevel(m.kelas, siswaKelas));
 
   const handleSaveProfile = async () => {
     if (currentSiswa) {

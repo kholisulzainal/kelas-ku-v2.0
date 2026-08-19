@@ -20,6 +20,7 @@ import { syncRowToSupabase, deleteRowFromSupabase, saveOperatorCredentialsToSupa
 import { syncRowToFirebase, deleteRowFromFirebase } from './firebase';
 import { uploadFileToSupabaseStorage } from './storage.service';
 import { generateStandardMapelCode, extractGradeNumber } from '../utils/mapelUtils';
+import { isSameClassLevel } from '../utils/classMatcher';
 import { getWibDateString, getWibIsoString } from '../utils/dateUtils';
 
 // Empty default data structures (No hardcoded dummy/sample records)
@@ -473,11 +474,51 @@ export const db = {
         return m;
       });
 
+      // Auto-deduplicate mapels with identical ID or identical (namaMapel + kelas)
+      const seenIds = new Set<string>();
+      const seenCombo = new Set<string>();
+      const deduped: MataPelajaran[] = [];
+
+      for (const m of list) {
+        if (!m.id || seenIds.has(m.id)) {
+          updated = true;
+          continue;
+        }
+        const normName = (m.namaMapel || '').trim().toLowerCase();
+        const normKelas = (m.kelas || '').trim().toLowerCase();
+        const comboKey = `${normName}__${normKelas}`;
+
+        if (seenCombo.has(comboKey)) {
+          updated = true;
+          continue;
+        }
+
+        seenIds.add(m.id);
+        seenCombo.add(comboKey);
+        deduped.push(m);
+      }
+      list = deduped;
+
       if (updated) {
         localStorage.setItem('mata_pelajaran', JSON.stringify(list));
       }
 
       return list.sort((a, b) => a.namaMapel.localeCompare(b.namaMapel));
+    },
+    getByKelas: (kelas?: string): MataPelajaran[] => {
+      const all = db.mataPelajaran.getAll();
+      if (!kelas || kelas === 'Semua' || kelas === 'Semua Kelas') return all;
+      return all.filter(m => !m.kelas || m.kelas === 'Semua' || m.kelas === 'Semua Kelas' || isSameClassLevel(m.kelas, kelas));
+    },
+    getDistinctNames: (kelas?: string): string[] => {
+      const matching = db.mataPelajaran.getByKelas(kelas);
+      const names = new Set<string>();
+      matching.forEach(m => {
+        if (m.namaMapel && m.namaMapel.trim()) {
+          names.add(m.namaMapel.trim());
+        }
+      });
+      return Array.from(names).sort((a, b) => a.localeCompare(b));
     },
     save: (items: MataPelajaran[]) => {
       localStorage.setItem('mata_pelajaran', JSON.stringify(items));

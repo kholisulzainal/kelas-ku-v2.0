@@ -16,7 +16,7 @@ import { db } from '../services/db';
 import { exportToCSV } from '../utils/export';
 import { Absensi, Asesmen, DaftarTugas, TugasSiswa } from '../types';
 import { BukuDigitalView } from '../components/BukuDigitalView';
-import { isTaskForStudentClass } from '../utils/classMatcher';
+import { isTaskForStudentClass, isSameClassLevel } from '../utils/classMatcher';
 import { tugasService } from '../services/tugas.service';
 
 interface OrangTuaDashboardProps {
@@ -35,7 +35,7 @@ export function OrangTuaDashboard({ activeTab, parentId }: OrangTuaDashboardProp
   const [childGrades, setChildGrades] = useState<Asesmen[]>(db.asesmen.getAll().filter(a => a.siswaId === targetSiswaId));
   const [childAttendance, setChildAttendance] = useState<Absensi[]>(db.absensi.getAll().filter(a => a.siswaId === targetSiswaId));
   const childKelas = currentSiswa?.kelas || 'Kelas 4';
-  const subjects = db.mataPelajaran.getAll().filter(m => !m.kelas || m.kelas === childKelas);
+  const subjects = db.mataPelajaran.getAll().filter(m => !m.kelas || m.kelas === 'Semua' || m.kelas === 'Semua Kelas' || isSameClassLevel(m.kelas, childKelas));
 
   useEffect(() => {
     // Sync states on real-time event or fallback interval

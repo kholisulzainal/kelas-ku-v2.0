@@ -79,6 +79,13 @@ export function AsesmenMatrixTable({
 
   // All subjects allowed for this user role with strict isolation
   const availableMapels = mapels.filter(m => {
+    // Strict class isolation: if a specific class is active, only show subjects for that class
+    if (effectiveClass !== 'Semua' && m.kelas && m.kelas !== 'Semua' && m.kelas !== 'Semua Kelas') {
+      if (!isSameClassLevel(m.kelas, effectiveClass)) {
+        return false;
+      }
+    }
+
     if (currentRole === 'operator') return true;
 
     if (isRealWaliKelas && loggedInGuru?.kelasWali) {
