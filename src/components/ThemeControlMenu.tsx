@@ -29,6 +29,11 @@ export function ThemeControlMenu({ buttonClassName, showLabel = true }: ThemeCon
 
   const themeOptions: { id: ThemeMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     {
+      id: 'system',
+      label: 'Dapodik (Bawaan)',
+      icon: Laptop
+    },
+    {
       id: 'light',
       label: 'Terang',
       icon: Sun
@@ -37,15 +42,10 @@ export function ThemeControlMenu({ buttonClassName, showLabel = true }: ThemeCon
       id: 'dark',
       label: 'Gelap',
       icon: Moon
-    },
-    {
-      id: 'system',
-      label: 'Otomatis',
-      icon: Laptop
     }
   ];
 
-  const currentOption = themeOptions.find((o) => o.id === theme) || themeOptions[2];
+  const currentOption = themeOptions.find((o) => o.id === theme) || themeOptions[0];
   const CurrentIcon = theme === 'system' ? Laptop : resolvedTheme === 'dark' ? Moon : Sun;
 
   return (

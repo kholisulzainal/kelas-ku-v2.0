@@ -55,21 +55,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = window.document.documentElement;
 
     const applyTheme = () => {
-      let active: ResolvedTheme = 'light';
       if (theme === 'system') {
-        active = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      } else {
-        active = theme;
-      }
-
-      setResolvedTheme(active);
-
-      if (active === 'dark') {
+        // Dapodik Authentic Theme (Default System)
+        setResolvedTheme('light');
+        root.classList.add('theme-dapodik');
+        root.classList.remove('theme-light');
+        root.classList.remove('dark');
+        document.body.classList.add('theme-dapodik');
+        document.body.classList.remove('dark');
+        root.style.colorScheme = 'light';
+      } else if (theme === 'dark') {
+        // Pure Dark Theme
+        setResolvedTheme('dark');
+        root.classList.remove('theme-dapodik');
+        root.classList.remove('theme-light');
         root.classList.add('dark');
+        document.body.classList.remove('theme-dapodik');
         document.body.classList.add('dark');
         root.style.colorScheme = 'dark';
       } else {
+        // Pure Light Theme
+        setResolvedTheme('light');
+        root.classList.remove('theme-dapodik');
         root.classList.remove('dark');
+        root.classList.add('theme-light');
+        document.body.classList.remove('theme-dapodik');
         document.body.classList.remove('dark');
         root.style.colorScheme = 'light';
       }

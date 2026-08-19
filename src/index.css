@@ -183,4 +183,137 @@ select {
   background: #94A3B8;
 }
 
+/* ===================================================
+   AUTHENTIC DAPODIK THEME (DEFAULT SYSTEM THEME)
+   =================================================== */
+.theme-dapodik header {
+  background: linear-gradient(135deg, #073B63 0%, #0C4B7D 50%, #08365B 100%) !important;
+  border-bottom: 1px solid #14446E !important;
+  box-shadow: 0 4px 16px rgba(7, 59, 99, 0.25) !important;
+}
+
+.theme-dapodik header h1 {
+  color: #FFFFFF !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.theme-dapodik header .text-\[\#1E293B\] {
+  color: #FFFFFF !important;
+}
+
+.theme-dapodik header .text-\[\#64748B\],
+.theme-dapodik header .text-slate-400,
+.theme-dapodik header .text-slate-500 {
+  color: #BFDBFE !important;
+}
+
+.theme-dapodik header .text-blue-600 {
+  color: #FACC15 !important; /* Dapodik Golden Yellow */
+  font-weight: 700 !important;
+}
+
+.theme-dapodik header button#refresh_page_btn,
+.theme-dapodik header button#notif_bell_btn,
+.theme-dapodik header button#theme_control_trigger_btn,
+.theme-dapodik header button#mobile_hamburger_btn {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  color: #FFFFFF !important;
+  backdrop-filter: blur(8px);
+}
+
+.theme-dapodik header button#refresh_page_btn:hover,
+.theme-dapodik header button#notif_bell_btn:hover,
+.theme-dapodik header button#theme_control_trigger_btn:hover,
+.theme-dapodik header button#mobile_hamburger_btn:hover {
+  background: rgba(255, 255, 255, 0.26) !important;
+  color: #FFFFFF !important;
+}
+
+.theme-dapodik header button#theme_control_trigger_btn span {
+  color: #FFFFFF !important;
+}
+
+.theme-dapodik header button#google_login_btn {
+  background: rgba(255, 255, 255, 0.20) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  color: #FFFFFF !important;
+}
+
+.theme-dapodik header button#google_login_btn svg {
+  color: #FFFFFF !important;
+}
+
+.theme-dapodik header .bg-slate-50 {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #FFFFFF !important;
+}
+
+.theme-dapodik header .bg-slate-50 span {
+  color: #FFFFFF !important;
+}
+
+/* Dapodik Sidebar Navigation */
+.theme-dapodik aside {
+  background: #0B2239 !important;
+  border-right: 1px solid #143759 !important;
+  box-shadow: 2px 0 10px rgba(11, 34, 57, 0.15);
+}
+
+.theme-dapodik aside button {
+  color: #CBD5E1 !important;
+}
+
+.theme-dapodik aside button svg {
+  color: #94A3B8 !important;
+}
+
+.theme-dapodik aside button:hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  color: #FFFFFF !important;
+}
+
+.theme-dapodik aside button:hover svg {
+  color: #FFFFFF !important;
+}
+
+.theme-dapodik aside button.bg-blue-600 {
+  background: #0284C7 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45) !important;
+  border-left: 3px solid #38BDF8;
+}
+
+.theme-dapodik aside button.bg-blue-600 svg {
+  color: #FFFFFF !important;
+}
+
+.theme-dapodik aside .bg-blue-50 {
+  background: rgba(2, 132, 199, 0.18) !important;
+  color: #38BDF8 !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+.theme-dapodik aside .bg-blue-50 svg {
+  color: #38BDF8 !important;
+}
+
+.theme-dapodik aside .text-slate-700,
+.theme-dapodik aside .text-slate-600 {
+  color: #E2E8F0 !important;
+}
+
+/* Mobile Sidebar Drawer in Dapodik mode */
+.theme-dapodik div[class*="fixed"][class*="z-55"] {
+  background: #0B2239 !important;
+  border-right: 1px solid #143759 !important;
+}
+
+.theme-dapodik div[class*="fixed"][class*="z-55"] > div:first-child {
+  background: #071C30 !important;
+  border-bottom: 1px solid #143759 !important;
+}
+
+
 
