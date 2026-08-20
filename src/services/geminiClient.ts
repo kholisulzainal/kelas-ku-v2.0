@@ -21,6 +21,8 @@ export const setStoredGeminiApiKey = (key: string): void => {
     } else {
       localStorage.setItem(GEMINI_STORAGE_KEY, key.trim());
     }
+    // Clear cached models when key changes
+    cachedDiscoveredModels = null;
     window.dispatchEvent(new CustomEvent('gemini-config-updated'));
   } catch (e) {
     // Ignore local storage write errors
@@ -30,6 +32,7 @@ export const setStoredGeminiApiKey = (key: string): void => {
 export const removeStoredGeminiApiKey = (): void => {
   try {
     localStorage.removeItem(GEMINI_STORAGE_KEY);
+    cachedDiscoveredModels = null;
     window.dispatchEvent(new CustomEvent('gemini-config-updated'));
   } catch (e) {
     // Ignore
@@ -51,9 +54,75 @@ Misi dan Gaya Komunikasi Anda:
 3. Memberikan contoh konkret yang aplikatif di kelas nyata di Indonesia.
 4. Gunakan format Markdown rapi (tabel, poin-poin, bolding) agar nyaman dibaca oleh pendidik.`;
 
+// In-memory cache of verified models for the current session
+let cachedDiscoveredModels: { key: string; models: string[]; timestamp: number } | null = null;
+
+// Official current Google GenAI models (2026 standard)
+const DEFAULT_MODELS = [
+  'gemini-3.7-flash',
+  'gemini-flash-latest',
+  'gemini-3.1-pro-preview',
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash'
+];
+
+/**
+ * Dynamically queries Google ModelService to get active models supported by the API key
+ */
+async function discoverAvailableModels(apiKey: string): Promise<string[]> {
+  const cleanKey = apiKey.trim();
+  const now = Date.now();
+
+  if (cachedDiscoveredModels && cachedDiscoveredModels.key === cleanKey && (now - cachedDiscoveredModels.timestamp < 300000)) {
+    return cachedDiscoveredModels.models;
+  }
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.models)) {
+        // Filter models that support generateContent and exclude deprecated legacy models
+        const validModels = data.models
+          .filter((m: any) => {
+            const name = (m.name || '').replace(/^models\//, '');
+            const methods = m.supportedGenerationMethods || [];
+            const isContentGen = methods.includes('generateContent');
+            // Filter out old retired models
+            const isDeprecated = name.includes('1.5') || name.includes('2.0') || name === 'gemini-2.5-pro';
+            return isContentGen && !isDeprecated;
+          })
+          .map((m: any) => (m.name || '').replace(/^models\//, ''));
+
+        // Sort to prioritize flash and pro models
+        validModels.sort((a: string, b: string) => {
+          const score = (m: string) => {
+            if (m.includes('3.7-flash')) return 100;
+            if (m.includes('flash-latest')) return 90;
+            if (m.includes('3.1-pro')) return 80;
+            if (m.includes('3.1-flash')) return 70;
+            if (m.includes('2.5-flash')) return 60;
+            return 10;
+          };
+          return score(b) - score(a);
+        });
+
+        if (validModels.length > 0) {
+          cachedDiscoveredModels = { key: cleanKey, models: validModels, timestamp: now };
+          return validModels;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Gemini Client] Failed to dynamically list models, using fallback defaults:', err);
+  }
+
+  return DEFAULT_MODELS;
+}
+
 /**
  * Direct call to Google Gemini REST API from the browser when an API Key is available.
- * Tries multiple official models in sequence to prevent single-point failures and 503 high-demand errors.
+ * Queries dynamically available models and retries seamlessly across valid models.
  */
 async function callGeminiDirectRest(
   apiKey: string,
@@ -68,14 +137,8 @@ async function callGeminiDirectRest(
     };
   }
 
-  // Model cascade: prioritize fast, highly available models to avoid 503 high-demand spikes
-  const models = [
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.5-flash',
-    'gemini-1.5-flash',
-    'gemini-2.5-pro'
-  ];
+  // Get active models
+  const models = await discoverAvailableModels(cleanKey);
 
   // Format conversation history for Gemini REST API
   const contents = [
@@ -101,12 +164,10 @@ async function callGeminiDirectRest(
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 4096
+        },
+        systemInstruction: {
+          parts: [{ text: SYSTEM_INSTRUCTION_DEFAULT }]
         }
-      };
-
-      // Include system instruction
-      requestBody.systemInstruction = {
-        parts: [{ text: SYSTEM_INSTRUCTION_DEFAULT }]
       };
 
       const res = await fetch(url, {
@@ -142,7 +203,13 @@ async function callGeminiDirectRest(
           }
         }
 
-        // If 503 (High demand) or 429 (Rate limit), mark flag and attempt the next model immediately
+        // If model is retired or not found, proceed immediately to next model
+        if (res.status === 404 || errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('no longer available')) {
+          console.warn(`[Gemini Direct API] Model ${model} unavailable, trying next...`);
+          continue;
+        }
+
+        // If 503 (High demand) or 429 (Rate limit), mark flag and attempt the next model
         if (res.status === 503 || errMsg.toLowerCase().includes('high demand') || res.status === 429) {
           hadHighDemand = true;
           console.warn(`[Gemini Direct API] Model ${model} is busy (503/429), switching to next model...`);
@@ -161,13 +228,13 @@ async function callGeminiDirectRest(
   if (hadHighDemand) {
     return {
       success: false,
-      error: `Server Google AI sedang mengalami antrean trafik tinggi (High Demand). Silakan tunggu sekitar 5 detik lalu coba kirim ulang pertanyaan Anda.`
+      error: `Server Google AI sedang mengalami antrean trafik tinggi. Silakan coba kembali dalam beberapa detik.`
     };
   }
 
   return {
     success: false,
-    error: `Koneksi Google Gemini API gagal: ${lastErrMessage || 'Semua model tidak merespons'}. Pastikan API Key valid.`
+    error: `Koneksi Google Gemini API gagal: ${lastErrMessage || 'Model tidak merespons'}. Pastikan API Key valid.`
   };
 }
 
