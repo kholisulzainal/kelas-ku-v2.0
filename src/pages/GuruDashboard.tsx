@@ -285,7 +285,6 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   const watchLogoUrl = watch('logoUrl');
   const watchKelas = watch('kelas');
   const watchSiswaId = watch('siswaId');
-  const watchTtdGambar = watch('ttdGambar');
 
   // Operator credentials custom management states & handlers
   const [opUsername, setOpUsername] = useState(() => db.operatorCredentials.get().username);
@@ -1013,32 +1012,6 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
     }
   };
 
-  const handleGuruSignatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setCustomAlert({
-          title: 'File Terlalu Besar',
-          message: 'Ukuran file tanda tangan maksimal 2 MB.',
-          type: 'warning'
-        });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setValue('ttdGambar', base64);
-        setValue('ttdOpsi', 'manual_image');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveGuruSignature = () => {
-    setValue('ttdGambar', '');
-    setValue('ttdOpsi', 'qr_code');
-  };
-
   const handleSchoolLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1368,9 +1341,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         statusKepegawaian: 'PNS',
         fotoUrl: '',
         password: 'guru123',
-        isWaliKelas: false,
-        ttdGambar: '',
-        ttdOpsi: 'qr_code'
+        isWaliKelas: false
       });
     } else if (activeTab === 'tugas_harian') {
       const defaultKelas = activeClassFilter !== 'Semua' ? activeClassFilter : (loggedInGuru?.kelasWali || classList[0] || 'Kelas 6');
@@ -1464,7 +1435,6 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
 
   // A. GURU CRUD
   const onSubmitGuru = (data: any) => {
-    const signatureImage = data.ttdGambar !== undefined ? data.ttdGambar : (editingItem?.ttdGambar || '');
     const item: Guru = {
       id: editingItem?.id || `guru-${Date.now()}`,
       nip: data.nip,
@@ -1476,8 +1446,8 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       password: data.password || editingItem?.password || 'guru123',
       isWaliKelas: (data.kelasWali && data.kelasWali !== 'GURU MAPEL' && data.kelasWali !== '') ? true : !!data.isWaliKelas,
       kelasWali: data.kelasWali || editingItem?.kelasWali || '',
-      ttdGambar: signatureImage,
-      ttdOpsi: signatureImage ? 'manual_image' : 'qr_code'
+      ttdGambar: editingItem?.ttdGambar || '',
+      ttdOpsi: editingItem?.ttdOpsi || 'qr_code'
     };
     db.guru.upsert(item);
     setGurus(db.guru.getAll());
@@ -4479,21 +4449,6 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                   Kepegawaian: {g.statusKepegawaian}
                 </span>
 
-                {/* TTD STATUS BADGE */}
-                <div className="mt-3 w-full flex items-center justify-center">
-                  {g.ttdGambar ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-full text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      TTD Gambar Terpasang
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-full text-[10px] font-extrabold text-blue-700 dark:text-blue-300" title="QR Code terverifikasi otomatis dibuat di PDF jika gambar kosong">
-                      <ShieldCheck className="w-3 h-3 text-blue-600" />
-                      QR Code Otomatis
-                    </span>
-                  )}
-                </div>
-
                 {isOperator && (
                   <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 w-full text-left space-y-2">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Integrasi Google Workspace</p>
@@ -6341,72 +6296,6 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                           className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1 text-xs focus:ring-2 focus:ring-m3-purple/20 outline-none text-slate-800 dark:text-white"
                         />
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* INTERACTIVE TTD GURU (UPLOAD / AUTO QR FALLBACK) */}
-                <div className="space-y-3 bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80">
-                  <div className="border-b border-slate-100 dark:border-slate-800 pb-1.5 flex items-center justify-between">
-                    <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Tanda Tangan Guru (TTD)</label>
-                    {watchTtdGambar ? (
-                      <span className="text-[10px] font-extrabold px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-full">
-                        Gambar TTD
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-extrabold px-2 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-full">
-                        QR Code Otomatis
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {watchTtdGambar ? (
-                      <div className="space-y-2">
-                        <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-24 h-12 bg-slate-50 dark:bg-slate-900 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-1 flex items-center justify-center overflow-hidden">
-                              <img src={watchTtdGambar} alt="TTD Guru" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
-                            </div>
-                            <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Gambar Tanda Tangan Terpasang</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleRemoveGuruSignature}
-                            className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Hapus TTD</span>
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-slate-500 italic">
-                          Gambar tanda tangan di atas akan tertera pada kolom tanda tangan guru di dokumen PDF.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 rounded-xl border border-blue-200/60 dark:border-blue-900/40 space-y-1.5">
-                        <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200 text-xs font-bold">
-                          <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-                          <span>Mode Aktif: QR Code Terverifikasi Otomatis</span>
-                        </div>
-                        <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-                          Karena belum ada file tanda tangan yang diunggah, sistem otomatis menyematkan QR Code resmi berisi Nama, Gelar, dan NIP guru pada dokumen PDF.
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2 pt-1">
-                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs">
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>{watchTtdGambar ? 'Ganti File TTD' : 'Upload Gambar TTD'}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleGuruSignatureChange}
-                          className="hidden"
-                        />
-                      </label>
-                      <span className="text-[10px] text-slate-400">PNG / JPG (Maks. 2 MB)</span>
                     </div>
                   </div>
                 </div>
