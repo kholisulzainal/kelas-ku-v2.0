@@ -183,5 +183,5 @@ Jika aplikasi ini bermanfaat bagi kegiatan belajar mengajar atau institusi sekol
 ---
 
 ## 9. Lisensi
-Hak Cipta (c) 2026 **Kholisul Zainal Asfan Sholikh, S.Pd.** - Sistem Manajemen Sekolah & LMS Digital.  
+Hak Cipta (c) 2026 **@kholisulzainal** - Sistem Manajemen Sekolah & LMS Digital.  
 Didistribusikan di bawah Lisensi MIT. Bebas digunakan dan dikembangkan untuk kemaslahatan pendidikan.
