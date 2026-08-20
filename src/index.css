@@ -254,65 +254,85 @@ select {
   color: #FFFFFF !important;
 }
 
-/* Dapodik Sidebar Navigation */
+/* Dapodik Sidebar Navigation - Clean High-Contrast White Background */
 .theme-dapodik aside {
-  background: #0B2239 !important;
-  border-right: 1px solid #143759 !important;
-  box-shadow: 2px 0 10px rgba(11, 34, 57, 0.15);
+  background: #FFFFFF !important;
+  border-right: 1px solid #DCE8F7 !important;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 .theme-dapodik aside button {
-  color: #CBD5E1 !important;
+  color: #000000 !important;
 }
 
 .theme-dapodik aside button svg {
-  color: #94A3B8 !important;
+  color: #000000 !important;
 }
 
 .theme-dapodik aside button:hover {
-  background: rgba(255, 255, 255, 0.09) !important;
-  color: #FFFFFF !important;
+  background: #F1F5F9 !important;
+  color: #1D4ED8 !important;
 }
 
 .theme-dapodik aside button:hover svg {
-  color: #FFFFFF !important;
+  color: #1D4ED8 !important;
 }
 
 .theme-dapodik aside button.bg-blue-600 {
-  background: #0284C7 !important;
+  background: #2563EB !important;
   color: #FFFFFF !important;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45) !important;
-  border-left: 3px solid #38BDF8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+  border-left: none !important;
 }
 
-.theme-dapodik aside button.bg-blue-600 svg {
+.theme-dapodik aside button.bg-blue-600 svg,
+.theme-dapodik aside button.bg-blue-600 span {
   color: #FFFFFF !important;
 }
 
-.theme-dapodik aside .bg-blue-50 {
-  background: rgba(2, 132, 199, 0.18) !important;
-  color: #38BDF8 !important;
-  border-color: rgba(56, 189, 248, 0.35) !important;
+.theme-dapodik aside button.bg-indigo-600 {
+  background: #4F46E5 !important;
+  color: #FFFFFF !important;
 }
 
-.theme-dapodik aside .bg-blue-50 svg {
-  color: #38BDF8 !important;
+.theme-dapodik aside button.bg-indigo-600 svg,
+.theme-dapodik aside button.bg-indigo-600 span {
+  color: #FFFFFF !important;
 }
 
-.theme-dapodik aside .text-slate-700,
-.theme-dapodik aside .text-slate-600 {
-  color: #E2E8F0 !important;
+.theme-dapodik aside .bg-blue-100 {
+  background: #EFF6FF !important;
+  color: #1E3A8A !important;
+  border-color: #93C5FD !important;
+}
+
+.theme-dapodik aside .bg-indigo-100 {
+  background: #EEF2FF !important;
+  color: #312E81 !important;
+  border-color: #A5B4FC !important;
+}
+
+.theme-dapodik aside span,
+.theme-dapodik aside p,
+.theme-dapodik aside div {
+  color: #000000 !important;
+}
+
+.theme-dapodik aside .text-white,
+.theme-dapodik aside button.bg-blue-600 span,
+.theme-dapodik aside button.bg-indigo-600 span {
+  color: #FFFFFF !important;
 }
 
 /* Mobile Sidebar Drawer in Dapodik mode */
 .theme-dapodik div[class*="fixed"][class*="z-55"] {
-  background: #0B2239 !important;
-  border-right: 1px solid #143759 !important;
+  background: #FFFFFF !important;
+  border-right: 1px solid #DCE8F7 !important;
 }
 
 .theme-dapodik div[class*="fixed"][class*="z-55"] > div:first-child {
-  background: #071C30 !important;
-  border-bottom: 1px solid #143759 !important;
+  background: #F8FAFC !important;
+  border-bottom: 1px solid #E2E8F0 !important;
 }
 
 

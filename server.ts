@@ -39,8 +39,14 @@ async function generateContentWithFallback(ai: GoogleGenAI, params: {
   contents: any[];
   config: any;
 }) {
-  // Official valid Google GenAI models
-  const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest', 'gemini-3.7-flash'];
+  // Official valid Google GenAI models with high availability fallback
+  const modelsToTry = [
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+    'gemini-2.5-pro'
+  ];
   let lastError: any = null;
 
   for (const model of modelsToTry) {

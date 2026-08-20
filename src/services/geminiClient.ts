@@ -47,12 +47,13 @@ const SYSTEM_INSTRUCTION_DEFAULT = `Anda adalah "AI Tutor Guru", pakar pedagogi 
 
 Misi dan Gaya Komunikasi Anda:
 1. Menjawab dalam Bahasa Indonesia yang santun, profesional, penuh empati, dan solutif.
-2. Membantu guru dalam menyusun Modul Ajar, Alur Tujuan Pembelajaran (ATP), Capaian Pembelajaran (CP), Asesmen Diagnostik/Formatif/Sumatif, serta Diferensiasi Pembelajaran.
+2. Membantu guru dalam menyusun Modul Ajar, Alur Tujuan Pembelajaran (ATP), Capaian Pembelajaran (CP), Asesmen Diagnostik/Formatif/Sumatif, serta Pembelajaran Berdiferensiasi.
 3. Memberikan contoh konkret yang aplikatif di kelas nyata di Indonesia.
-4. Gunakan format Markdown rapi (tabel, bullet points, bolding) agar nyaman dibaca oleh pendidik.`;
+4. Gunakan format Markdown rapi (tabel, poin-poin, bolding) agar nyaman dibaca oleh pendidik.`;
 
 /**
- * Direct call to Google Gemini REST API from the browser when an API Key is available
+ * Direct call to Google Gemini REST API from the browser when an API Key is available.
+ * Tries multiple official models in sequence to prevent single-point failures and 503 high-demand errors.
  */
 async function callGeminiDirectRest(
   apiKey: string,
@@ -60,10 +61,23 @@ async function callGeminiDirectRest(
   history: Array<{ role: string; text: string }> = []
 ): Promise<AiTutorResponse> {
   const cleanKey = apiKey.trim();
-  // Valid, active Google GenAI models (no deprecated 1.5 or 2.0 models)
-  const models = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest', 'gemini-3.7-flash'];
+  if (!cleanKey) {
+    return {
+      success: false,
+      error: 'Google Gemini API Key belum diisi. Silakan masukkan API Key di Pengaturan Aplikasi (Operator).'
+    };
+  }
 
-  // Format contents for Gemini REST API
+  // Model cascade: prioritize fast, highly available models to avoid 503 high-demand spikes
+  const models = [
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+    'gemini-2.5-pro'
+  ];
+
+  // Format conversation history for Gemini REST API
   const contents = [
     ...history.map(m => ({
       role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
@@ -75,26 +89,32 @@ async function callGeminiDirectRest(
     }
   ];
 
-  let lastErr = '';
+  let lastErrMessage = '';
+  let hadHighDemand = false;
 
   for (const model of models) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+      
+      const requestBody: any = {
+        contents,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4096
+        }
+      };
+
+      // Include system instruction
+      requestBody.systemInstruction = {
+        parts: [{ text: SYSTEM_INSTRUCTION_DEFAULT }]
+      };
+
       const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: {
-            parts: [{ text: SYSTEM_INSTRUCTION_DEFAULT }]
-          },
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 4096
-          }
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (res.ok) {
@@ -112,35 +132,42 @@ async function callGeminiDirectRest(
         const errJson = await res.json().catch(() => null);
         const errMsg = errJson?.error?.message || `HTTP ${res.status}: ${res.statusText}`;
 
-        // If the key is invalid or unauthorized, stop trying other models
+        // If the key itself is explicitly invalid or forbidden, return immediate warning
         if (res.status === 400 || res.status === 401 || res.status === 403) {
-          if (errMsg.toLowerCase().includes('api key') || errMsg.toLowerCase().includes('invalid')) {
+          if (errMsg.toLowerCase().includes('api key') || errMsg.toLowerCase().includes('key not valid') || errMsg.toLowerCase().includes('permission_denied')) {
             return {
               success: false,
-              error: `API Key Google Gemini tidak valid atau tidak diizinkan. Silakan periksa kembali API Key dari https://aistudio.google.com/app/apikey`
+              error: `API Key Google Gemini tidak valid atau izin ditolak. Silakan buat API Key baru gratis di https://aistudio.google.com/app/apikey dan simpan di Pengaturan Aplikasi.`
             };
           }
         }
 
-        if (res.status === 429) {
-          return {
-            success: false,
-            error: `Batas kuota Google Gemini API terlampaui sementara (Rate Limit). Silakan tunggu 1 menit.`
-          };
+        // If 503 (High demand) or 429 (Rate limit), mark flag and attempt the next model immediately
+        if (res.status === 503 || errMsg.toLowerCase().includes('high demand') || res.status === 429) {
+          hadHighDemand = true;
+          console.warn(`[Gemini Direct API] Model ${model} is busy (503/429), switching to next model...`);
+          continue;
         }
 
-        lastErr = errMsg;
-        console.warn(`[Gemini Direct API] Model ${model} returned error:`, lastErr);
+        lastErrMessage = errMsg;
+        console.warn(`[Gemini Direct API] Model ${model} failed:`, errMsg);
       }
     } catch (e: any) {
-      lastErr = e?.message || 'Gagal terhubung ke Google AI API';
-      console.warn(`[Gemini Direct API] Model ${model} network error:`, e);
+      lastErrMessage = e?.message || 'Kesalahan jaringan';
+      console.warn(`[Gemini Direct API] Network error on model ${model}:`, e);
     }
+  }
+
+  if (hadHighDemand) {
+    return {
+      success: false,
+      error: `Server Google AI sedang mengalami antrean trafik tinggi (High Demand). Silakan tunggu sekitar 5 detik lalu coba kirim ulang pertanyaan Anda.`
+    };
   }
 
   return {
     success: false,
-    error: `Koneksi Google Gemini API gagal: ${lastErr || 'Model tidak merespons'}. Pastikan API Key valid.`
+    error: `Koneksi Google Gemini API gagal: ${lastErrMessage || 'Semua model tidak merespons'}. Pastikan API Key valid.`
   };
 }
 
@@ -152,36 +179,21 @@ export const callAiTutor = async (payload: {
   const localKey = getStoredGeminiApiKey();
   const effectiveKey = (payload.customApiKey || localKey || '').trim();
 
-  // If we have an API Key configured locally by the operator, call Gemini API directly
+  // 1. If an API Key is available in the browser (via Operator Settings), call direct Google Gemini REST
   if (effectiveKey) {
-    const directRes = await callGeminiDirectRest(effectiveKey, payload.prompt, payload.history || []);
-    if (directRes.success) {
-      return directRes;
-    }
-    // If the error was explicitly an invalid key or rate limit, return it immediately
-    if (directRes.error && (directRes.error.includes('tidak valid') || directRes.error.includes('Rate Limit'))) {
-      return directRes;
-    }
-    console.warn('[Gemini Client] Direct REST call failed, attempting backend fallback...', directRes.error);
+    return await callGeminiDirectRest(effectiveKey, payload.prompt, payload.history || []);
   }
 
-  // Fallback to server backend endpoint (/api/ai/tutor)
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  if (effectiveKey) {
-    headers['x-gemini-api-key'] = effectiveKey;
-  }
-
+  // 2. If no API Key stored locally, try backend server route (/api/ai/tutor)
   try {
     const res = await fetch('/api/ai/tutor', {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         prompt: payload.prompt,
-        history: payload.history || [],
-        customApiKey: effectiveKey || undefined
+        history: payload.history || []
       })
     });
 
@@ -189,7 +201,7 @@ export const callAiTutor = async (payload: {
     if (!contentType.includes('application/json')) {
       return {
         success: false,
-        error: `Server mengembalikan respons non-JSON (${res.status}). Silakan masukkan GEMINI_API_KEY di Pengaturan Aplikasi (Operator) atau Environment Variables Vercel.`
+        error: `Kunci API Google Gemini belum dikonfigurasi. Silakan buka menu Pengaturan Aplikasi (Operator) > tab "Gemini AI Configuration", lalu masukkan Google Gemini API Key Anda.`
       };
     }
 
@@ -198,7 +210,7 @@ export const callAiTutor = async (payload: {
   } catch (err: any) {
     return {
       success: false,
-      error: `Gagal terhubung ke server AI: ${err?.message || 'Periksa koneksi internet Anda.'}`
+      error: `Kunci API Google Gemini belum dikonfigurasi di Pengaturan Aplikasi. Silakan masukkan Google Gemini API Key Anda melalui menu Pengaturan Aplikasi (Operator).`
     };
   }
 };
@@ -207,25 +219,33 @@ export const testGeminiApiKey = async (apiKey?: string): Promise<{ success: bool
   const cleanKey = (apiKey || getStoredGeminiApiKey() || '').trim();
 
   if (cleanKey) {
-    // Test direct REST call with the provided key
     try {
-      const directRes = await callGeminiDirectRest(cleanKey, 'Jawab dalam 1 kalimat pendek: Halo! Sistem AI KelasKu siap digunakan.', []);
+      const directRes = await callGeminiDirectRest(cleanKey, 'Jawab dalam 1 kata pendek: Siap', []);
       if (directRes.success && directRes.reply) {
-        return { success: true, message: 'Koneksi ke Google Gemini AI berhasil terverifikasi dan aktif!' };
+        return { 
+          success: true, 
+          message: 'Koneksi ke Google Gemini AI berhasil terverifikasi dan aktif!' 
+        };
       }
-      return { success: false, message: directRes.error || 'Gagal memverifikasi API Key.' };
+      return { 
+        success: false, 
+        message: directRes.error || 'Gagal memverifikasi API Key.' 
+      };
     } catch (err: any) {
-      return { success: false, message: `Gagal menguji API Key: ${err?.message || 'Kesalahan jaringan.'}` };
+      return { 
+        success: false, 
+        message: `Gagal menguji API Key: ${err?.message || 'Kesalahan jaringan.'}` 
+      };
     }
   }
 
-  // If no local key provided, test server backend endpoint
+  // If testing backend key
   try {
     const res = await fetch('/api/ai/tutor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        prompt: 'Jawab dalam 1 kalimat pendek: Halo!',
+        prompt: 'Jawab dalam 1 kata: Siap',
         history: []
       })
     });
@@ -234,16 +254,19 @@ export const testGeminiApiKey = async (apiKey?: string): Promise<{ success: bool
     if (!contentType.includes('application/json')) {
       return {
         success: false,
-        message: 'Kunci API belum dikonfigurasi di browser maupun Environment Variable server Vercel. Silakan masukkan API Key pada input di atas.'
+        message: 'Kunci API belum diisi di Pengaturan Aplikasi maupun Environment Variables Vercel. Silakan masukkan API Key pada input di atas.'
       };
     }
 
     const data = await res.json();
     if (data.success) {
-      return { success: true, message: 'Koneksi Gemini AI Server (Default) berhasil terverifikasi!' };
+      return { success: true, message: 'Koneksi Gemini AI Server berhasil terverifikasi!' };
     }
     return { success: false, message: data.error || 'Gagal terhubung ke server Gemini AI.' };
   } catch (err: any) {
-    return { success: false, message: `Gagal menghubungi server: ${err?.message || 'Periksa koneksi jaringan.'}` };
+    return { 
+      success: false, 
+      message: 'Kunci API belum dimasukkan di browser. Silakan masukkan API Key pada input di atas.' 
+    };
   }
 };
