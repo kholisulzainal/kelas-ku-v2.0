@@ -38,6 +38,14 @@ export interface ProfilSekolah {
   kabupaten?: string;
   provinsi?: string;
   kodePos?: string;
+  // Pengaturan Tanda Tangan Digital (TTD) Kepala Sekolah & Default
+  ttdKepalaSekolahOpsi?: 'manual_image' | 'qr_code' | 'none';
+  ttdKepalaSekolahGambar?: string; // base64 / URL gambar ttd
+  ttdKepalaSekolahCustomQr?: string;
+  ttdGuruDefaultOpsi?: 'manual_image' | 'qr_code' | 'none';
+  ttdGuruDefaultGambar?: string; // base64 / URL gambar ttd
+  ttdGuruDefaultCustomQr?: string;
+  ttdTampilkanVerifikasiDigital?: boolean;
 }
 
 export interface Profile {
@@ -62,6 +70,10 @@ export interface Guru {
   isWaliKelas?: boolean;
   kelasWali?: string; // Spesifik kelas yang diwalikan (e.g. "Kelas 1", "Kelas 4", etc)
   googleEmail?: string;
+  // Pengaturan Tanda Tangan Digital (TTD) Personal Guru
+  ttdOpsi?: 'manual_image' | 'qr_code' | 'none';
+  ttdGambar?: string; // base64 / URL gambar ttd
+  ttdCustomQr?: string;
 }
 
 export interface Siswa {

@@ -31,7 +31,8 @@ import {
   Image,
   MapPin,
   Building,
-  Calendar
+  Calendar,
+  PenTool
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../services/db';
@@ -41,6 +42,7 @@ import { isFirebaseConfigured, getStoredFirebaseConfig } from '../services/fireb
 import { FirebaseSettingsTab } from './FirebaseSettingsTab';
 import { SupabaseSettingsTab } from './SupabaseSettingsTab';
 import { GeminiSettingsTab } from './GeminiSettingsTab';
+import { SignatureSettingsTab } from './SignatureSettingsTab';
 import { exportToExcel } from '../utils/export';
 import { Guru, Siswa, Absensi, ProfilSekolah } from '../types';
 
@@ -930,6 +932,30 @@ export function AplikasiSetting() {
           </button>
         </div>
       </form>
+
+      {/* ========================================================================= */}
+      {/* 2. KELOLA TANDA TANGAN DIGITAL (TTD GURU & KEPALA SEKOLAH)                 */}
+      {/* ========================================================================= */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-m3-border dark:border-slate-800 shadow-sm space-y-6">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-2xl">
+              <PenTool className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">2. Kelola Tanda Tangan Digital (TTD Guru &amp; Kepala Sekolah)</h3>
+              <p className="text-[11px] text-slate-500">
+                Konfigurasi tanda tangan resmi (Upload File Gambar Manual atau QR Code Otomatis dari Nama Lengkap + NIP) yang terintegrasi pada seluruh dokumen cetak PDF.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] uppercase tracking-wider font-extrabold px-3 py-1 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full">
+            Dokumen &amp; E-Sign #2
+          </span>
+        </div>
+
+        <SignatureSettingsTab />
+      </div>
 
       {/* ========================================================================= */}
       {/* PENGATURAN TEMA TAMPILAN (THEME CONTROL)                                  */}

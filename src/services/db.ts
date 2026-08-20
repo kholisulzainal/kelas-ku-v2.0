@@ -335,7 +335,14 @@ export const db = {
           kecamatan: parsed.kecamatan || '',
           kabupaten: parsed.kabupaten || '',
           provinsi: parsed.provinsi || '',
-          kodePos: parsed.kodePos || ''
+          kodePos: parsed.kodePos || '',
+          ttdKepalaSekolahOpsi: parsed.ttdKepalaSekolahOpsi || 'qr_code',
+          ttdKepalaSekolahGambar: parsed.ttdKepalaSekolahGambar || '',
+          ttdKepalaSekolahCustomQr: parsed.ttdKepalaSekolahCustomQr || '',
+          ttdGuruDefaultOpsi: parsed.ttdGuruDefaultOpsi || 'qr_code',
+          ttdGuruDefaultGambar: parsed.ttdGuruDefaultGambar || '',
+          ttdGuruDefaultCustomQr: parsed.ttdGuruDefaultCustomQr || '',
+          ttdTampilkanVerifikasiDigital: parsed.ttdTampilkanVerifikasiDigital !== false
         };
       } catch (e) {
         return defaultProfilSekolah;

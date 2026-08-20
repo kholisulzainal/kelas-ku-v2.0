@@ -68,6 +68,13 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import {
+  renderPdfSignatures,
+  generateQrCodeDataUrl,
+  getKepalaSekolahQrPayload,
+  getGuruQrPayload,
+  formatNamaDenganGelar
+} from '../utils/signatureUtils';
+import {
   ProfilSekolah,
   Guru,
   Siswa,
@@ -278,6 +285,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
   const watchLogoUrl = watch('logoUrl');
   const watchKelas = watch('kelas');
   const watchSiswaId = watch('siswaId');
+  const watchTtdGambar = watch('ttdGambar');
 
   // Operator credentials custom management states & handlers
   const [opUsername, setOpUsername] = useState(() => db.operatorCredentials.get().username);
@@ -1005,6 +1013,32 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
     }
   };
 
+  const handleGuruSignatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        setCustomAlert({
+          title: 'File Terlalu Besar',
+          message: 'Ukuran file tanda tangan maksimal 2 MB.',
+          type: 'warning'
+        });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setValue('ttdGambar', base64);
+        setValue('ttdOpsi', 'manual_image');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveGuruSignature = () => {
+    setValue('ttdGambar', '');
+    setValue('ttdOpsi', 'qr_code');
+  };
+
   const handleSchoolLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1334,7 +1368,9 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
         statusKepegawaian: 'PNS',
         fotoUrl: '',
         password: 'guru123',
-        isWaliKelas: false
+        isWaliKelas: false,
+        ttdGambar: '',
+        ttdOpsi: 'qr_code'
       });
     } else if (activeTab === 'tugas_harian') {
       const defaultKelas = activeClassFilter !== 'Semua' ? activeClassFilter : (loggedInGuru?.kelasWali || classList[0] || 'Kelas 6');
@@ -1428,6 +1464,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
 
   // A. GURU CRUD
   const onSubmitGuru = (data: any) => {
+    const signatureImage = data.ttdGambar !== undefined ? data.ttdGambar : (editingItem?.ttdGambar || '');
     const item: Guru = {
       id: editingItem?.id || `guru-${Date.now()}`,
       nip: data.nip,
@@ -1438,7 +1475,9 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       fotoUrl: data.fotoUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=250',
       password: data.password || editingItem?.password || 'guru123',
       isWaliKelas: (data.kelasWali && data.kelasWali !== 'GURU MAPEL' && data.kelasWali !== '') ? true : !!data.isWaliKelas,
-      kelasWali: data.kelasWali || editingItem?.kelasWali || ''
+      kelasWali: data.kelasWali || editingItem?.kelasWali || '',
+      ttdGambar: signatureImage,
+      ttdOpsi: signatureImage ? 'manual_image' : 'qr_code'
     };
     db.guru.upsert(item);
     setGurus(db.guru.getAll());
@@ -1970,9 +2009,9 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
     e.target.value = '';
   };
 
-  const cetakJadwalPDF = () => {
+  const cetakJadwalPDF = async () => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    drawSchoolHeader(doc, 'JADWAL PELAJARAN KELAS', true, activeClassFilter);
+    await drawSchoolHeader(doc, 'JADWAL PELAJARAN KELAS', true, activeClassFilter);
     const filteredJadwals = jadwals.filter(j => activeClassFilter === 'Semua' || j.kelas === activeClassFilter);
     const tableData = filteredJadwals.map((j, idx) => {
       const mapel = mapels.find(m => m.id === j.mapelId);
@@ -1994,6 +2033,8 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       styles: { fontSize: 8 },
       headStyles: { fillColor: [79, 70, 229] }
     });
+
+    await drawPDFSignature(doc, 297, activeClassFilter, true);
 
     doc.save(`Jadwal_Pelajaran_${activeClassFilter.replace(/\s+/g, '_')}.pdf`);
   };
@@ -2136,19 +2177,44 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
     if (kelasName && kelasName !== 'Semua') {
       const wali = gurus.find(g => g.isWaliKelas && g.kelasWali === kelasName);
       if (wali) {
-        return { nama: wali.namaGuru, nip: wali.nip || '-' };
+        return {
+          nama: formatNamaDenganGelar(wali.namaGuru, wali.gelar),
+          nip: wali.nip || '-',
+          gelar: wali.gelar,
+          id: wali.id,
+          ttdOpsi: wali.ttdOpsi,
+          ttdGambar: wali.ttdGambar
+        };
       }
     }
-    if (loggedInGuru && loggedInGuru.isWaliKelas) {
-      return { nama: loggedInGuru.namaGuru, nip: loggedInGuru.nip || '-' };
+    if (loggedInGuru) {
+      return {
+        nama: formatNamaDenganGelar(loggedInGuru.namaGuru, loggedInGuru.gelar),
+        nip: loggedInGuru.nip || '-',
+        gelar: loggedInGuru.gelar,
+        id: loggedInGuru.id,
+        ttdOpsi: loggedInGuru.ttdOpsi,
+        ttdGambar: loggedInGuru.ttdGambar
+      };
     }
     const firstWali = gurus.find(g => g.isWaliKelas);
     if (firstWali) {
-      return { nama: firstWali.namaGuru, nip: firstWali.nip || '-' };
+      return {
+        nama: formatNamaDenganGelar(firstWali.namaGuru, firstWali.gelar),
+        nip: firstWali.nip || '-',
+        gelar: firstWali.gelar,
+        id: firstWali.id,
+        ttdOpsi: firstWali.ttdOpsi,
+        ttdGambar: firstWali.ttdGambar
+      };
     }
     return {
       nama: '__________________________',
-      nip: '__________________________'
+      nip: '__________________________',
+      gelar: '',
+      id: '',
+      ttdOpsi: undefined,
+      ttdGambar: undefined
     };
   };
 
@@ -2228,45 +2294,22 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
     doc.setTextColor(0, 0, 0); // reset to black
   };
 
-  const drawPDFSignature = (doc: any, pageHeight: number, currentClass: string, isPortrait: boolean) => {
-    // @ts-ignore
-    const finalY = doc.lastAutoTable?.finalY || 150;
-    const requiredSpace = 55;
-    
-    let signatureY = finalY + 15;
-    if (signatureY + requiredSpace > pageHeight) {
-      doc.addPage();
-      signatureY = 20;
-    }
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-
-    const signLeftX = isPortrait ? 30 : 45;
-    const signRightX = isPortrait ? 130 : 195;
-
-    if (pdfIncludeSignature) {
-      doc.text('Mengetahui,', signLeftX, signatureY);
-      doc.text('Kepala Sekolah', signLeftX, signatureY + 5);
-      
-      doc.setFont('helvetica', 'bold');
-      doc.text(`( ${sekolah.kepalaSekolah || '__________________________'} )`, signLeftX, signatureY + 30);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`NIP. ${sekolah.nipKepalaSekolah || '__________________________'}`, signLeftX, signatureY + 35);
-    }
-
+  const drawPDFSignature = async (doc: any, pageHeight: number, currentClass: string, isPortrait: boolean) => {
+    const wali = getWaliKelasForClass(currentClass);
     const locationStr = getPrintLocation(sekolah);
     const dateStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-    
-    const wali = getWaliKelasForClass(currentClass);
 
-    doc.text(`${locationStr}, ${dateStr}`, signRightX, signatureY);
-    doc.text('Wali Kelas / Guru Pengampu', signRightX, signatureY + 5);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text(`( ${wali.nama} )`, signRightX, signatureY + 30);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`NIP. ${wali.nip}`, signRightX, signatureY + 35);
+    await renderPdfSignatures({
+      doc,
+      pageHeight,
+      currentClass,
+      isPortrait,
+      sekolah,
+      waliKelas: wali,
+      includeSignature: pdfIncludeSignature,
+      location: locationStr,
+      dateStr
+    });
   };
 
   const exportToExcelWithHeader = (
@@ -2760,7 +2803,9 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
             profileId: existing?.profileId,
             password: existing?.password || 'guru123',
             isWaliKelas,
-            kelasWali: finalKelasWali
+            kelasWali: finalKelasWali,
+            ttdOpsi: existing?.ttdOpsi || 'qr_code',
+            ttdGambar: existing?.ttdGambar || ''
           };
 
           db.guru.upsert(updatedItem);
@@ -3100,7 +3145,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       }
     });
 
-    drawPDFSignature(doc, pageHeight, activeClassFilter, isPortrait);
+    await drawPDFSignature(doc, pageHeight, activeClassFilter, isPortrait);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'italic');
@@ -3296,7 +3341,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       }
     });
 
-    drawPDFSignature(doc, pageHeight, activeClassFilter, isPortrait);
+    await drawPDFSignature(doc, pageHeight, activeClassFilter, isPortrait);
 
     const classNameSuffix = activeClassFilter === 'Semua' ? 'Semua_Kelas' : 'Kelas_' + activeClassFilter.replace(/\s+/g, '_');
     doc.save(`Laporan_Asesmen_${classNameSuffix}_${typeLabel}.pdf`);
@@ -3432,7 +3477,7 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
       }
     });
 
-    drawPDFSignature(doc, pageHeight, activeClassFilter, isPortrait);
+    await drawPDFSignature(doc, pageHeight, activeClassFilter, isPortrait);
 
     const classNameSuffix = activeClassFilter === 'Semua' ? 'Semua_Kelas' : 'Kelas_' + activeClassFilter.replace(/\s+/g, '_');
     doc.save(`Jurnal_Temuan_Khusus_${classNameSuffix}.pdf`);
@@ -4433,6 +4478,21 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                 <span className="mt-4 px-3 py-1 bg-slate-100 dark:bg-slate-800/40 text-[10px] font-bold uppercase tracking-wider text-slate-600 rounded-lg">
                   Kepegawaian: {g.statusKepegawaian}
                 </span>
+
+                {/* TTD STATUS BADGE */}
+                <div className="mt-3 w-full flex items-center justify-center">
+                  {g.ttdGambar ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-full text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      TTD Gambar Terpasang
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-full text-[10px] font-extrabold text-blue-700 dark:text-blue-300" title="QR Code terverifikasi otomatis dibuat di PDF jika gambar kosong">
+                      <ShieldCheck className="w-3 h-3 text-blue-600" />
+                      QR Code Otomatis
+                    </span>
+                  )}
+                </div>
 
                 {isOperator && (
                   <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 w-full text-left space-y-2">
@@ -6284,6 +6344,73 @@ export function GuruDashboard({ activeTab, setActiveTab }: GuruDashboardProps) {
                     </div>
                   </div>
                 </div>
+
+                {/* INTERACTIVE TTD GURU (UPLOAD / AUTO QR FALLBACK) */}
+                <div className="space-y-3 bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                  <div className="border-b border-slate-100 dark:border-slate-800 pb-1.5 flex items-center justify-between">
+                    <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">Tanda Tangan Guru (TTD)</label>
+                    {watchTtdGambar ? (
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-full">
+                        Gambar TTD
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-full">
+                        QR Code Otomatis
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {watchTtdGambar ? (
+                      <div className="space-y-2">
+                        <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-24 h-12 bg-slate-50 dark:bg-slate-900 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-1 flex items-center justify-center overflow-hidden">
+                              <img src={watchTtdGambar} alt="TTD Guru" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                            </div>
+                            <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Gambar Tanda Tangan Terpasang</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemoveGuruSignature}
+                            className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Hapus TTD</span>
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-slate-500 italic">
+                          Gambar tanda tangan di atas akan tertera pada kolom tanda tangan guru di dokumen PDF.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 rounded-xl border border-blue-200/60 dark:border-blue-900/40 space-y-1.5">
+                        <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200 text-xs font-bold">
+                          <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                          <span>Mode Aktif: QR Code Terverifikasi Otomatis</span>
+                        </div>
+                        <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                          Karena belum ada file tanda tangan yang diunggah, sistem otomatis menyematkan QR Code resmi berisi Nama, Gelar, dan NIP guru pada dokumen PDF.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{watchTtdGambar ? 'Ganti File TTD' : 'Upload Gambar TTD'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleGuruSignatureChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <span className="text-[10px] text-slate-400">PNG / JPG (Maks. 2 MB)</span>
+                    </div>
+                  </div>
+                </div>
+
                 {isCurrentGuruWaliKelas && (
                   <>
                     <div>
