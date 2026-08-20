@@ -55,7 +55,7 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
     const isAiActive = ['ai_tutor', 'ai_generator_soal', 'ai_perangkat_ajar'].includes(activeTab);
 
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {/* 1. Profil Sekolah */}
         <button
           id="sidebar_tab_profil_sekolah"
@@ -63,11 +63,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
           className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'profil_sekolah'
               ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-              : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+              : 'text-black dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'
           }`}
         >
-          <School className={`w-4 h-4 shrink-0 ${activeTab === 'profil_sekolah' ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
-          <span className="truncate">Profil Sekolah</span>
+          <School className={`w-4 h-4 shrink-0 ${activeTab === 'profil_sekolah' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+          <span className="truncate text-black dark:text-white">Profil Sekolah</span>
         </button>
 
         {/* 2. Profil Guru */}
@@ -77,11 +77,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
           className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'profil_guru'
               ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-              : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+              : 'text-black dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'
           }`}
         >
-          <UserCheck className={`w-4 h-4 shrink-0 ${activeTab === 'profil_guru' ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
-          <span className="truncate">Profil Guru</span>
+          <UserCheck className={`w-4 h-4 shrink-0 ${activeTab === 'profil_guru' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+          <span className="truncate text-black dark:text-white">Profil Guru</span>
         </button>
 
         {/* 3. SUB MENU: Pengelolaan Kelas (Accordion) */}
@@ -90,34 +90,34 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
             onClick={() => toggleSubMenu('pengelolaan_kelas')}
             className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
               isPengelolaanActive
-                ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-300 dark:border-blue-800'
-                : 'text-slate-950 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-950 dark:text-blue-200 border border-blue-300 dark:border-blue-800'
+                : 'text-black dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <div className="flex items-center gap-3">
-              <FolderKanban className={`w-4 h-4 shrink-0 ${isPengelolaanActive ? 'text-blue-700 dark:text-blue-400' : 'text-slate-800 dark:text-slate-300'}`} />
-              <span className="font-bold text-slate-950 dark:text-white">Pengelolaan Kelas</span>
+              <FolderKanban className={`w-4 h-4 shrink-0 ${isPengelolaanActive ? 'text-blue-700 dark:text-blue-400' : 'text-black dark:text-slate-200'}`} />
+              <span className="font-bold text-black dark:text-white">Pengelolaan Kelas</span>
             </div>
             {openSubMenus.pengelolaan_kelas ? (
-              <ChevronDown className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+              <ChevronDown className="w-4 h-4 text-black dark:text-slate-200" />
             ) : (
-              <ChevronRight className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+              <ChevronRight className="w-4 h-4 text-black dark:text-slate-200" />
             )}
           </button>
 
           {openSubMenus.pengelolaan_kelas && (
-            <div className="ml-3 pl-3 my-1 border-l-2 border-slate-300 dark:border-slate-700 space-y-0.5">
+            <div className="ml-3 pl-3 my-1.5 border-l-2 border-slate-400 dark:border-slate-600 space-y-1">
               <button
                 id="sidebar_tab_mata_pelajaran"
                 onClick={() => setActiveTab('mata_pelajaran')}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'mata_pelajaran'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-300'
                 }`}
               >
-                <BookOpen className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
-                <span className="truncate">Mata Pelajaran</span>
+                <BookOpen className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'mata_pelajaran' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+                <span className="truncate text-black dark:text-white">Mata Pelajaran</span>
               </button>
 
               <button
@@ -126,11 +126,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'jadwal_pelajaran'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-300'
                 }`}
               >
-                <Calendar className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
-                <span className="truncate">Jadwal Pelajaran</span>
+                <Calendar className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'jadwal_pelajaran' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+                <span className="truncate text-black dark:text-white">Jadwal Pelajaran</span>
               </button>
 
               <button
@@ -139,11 +139,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'data_siswa'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-300'
                 }`}
               >
-                <Users className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
-                <span className="truncate">Data Siswa</span>
+                <Users className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'data_siswa' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+                <span className="truncate text-black dark:text-white">Data Siswa</span>
               </button>
 
               <button
@@ -152,11 +152,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'absensi'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-300'
                 }`}
               >
-                <CheckSquare className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
-                <span className="truncate">Absensi Siswa</span>
+                <CheckSquare className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'absensi' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+                <span className="truncate text-black dark:text-white">Absensi Siswa</span>
               </button>
 
               <button
@@ -165,11 +165,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'tugas_harian'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-300'
                 }`}
               >
-                <Bookmark className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
-                <span className="truncate">Tugas Google Form</span>
+                <Bookmark className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'tugas_harian' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+                <span className="truncate text-black dark:text-white">Tugas Google Form</span>
               </button>
 
               <button
@@ -178,11 +178,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'asesmen'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-300'
                 }`}
               >
-                <Award className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
-                <span className="truncate">Asesmen Kurikulum</span>
+                <Award className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'asesmen' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+                <span className="truncate text-black dark:text-white">Asesmen Kurikulum</span>
               </button>
 
               <button
@@ -191,11 +191,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'temuan_khusus'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-300'
                 }`}
               >
-                <AlertOctagon className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
-                <span className="truncate">Temuan Khusus</span>
+                <AlertOctagon className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'temuan_khusus' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+                <span className="truncate text-black dark:text-white">Temuan Khusus</span>
               </button>
 
               <button
@@ -204,11 +204,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'kalender_akademik'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-300'
                 }`}
               >
-                <FileText className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
-                <span className="truncate">Kalender &amp; Jadwal</span>
+                <FileText className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'kalender_akademik' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+                <span className="truncate text-black dark:text-white">Kalender &amp; Jadwal</span>
               </button>
             </div>
           )}
@@ -221,11 +221,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
           className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'buku_digital_admin'
               ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-              : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+              : 'text-black dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'
           }`}
         >
-          <Library className={`w-4 h-4 shrink-0 ${activeTab === 'buku_digital_admin' ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
-          <span className="truncate">Buku Digital &amp; Modul</span>
+          <Library className={`w-4 h-4 shrink-0 ${activeTab === 'buku_digital_admin' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+          <span className="truncate text-black dark:text-white">Buku Digital &amp; Modul</span>
         </button>
 
         {/* 5. SUB MENU: Asisten & AI Guru (Accordion) */}
@@ -235,22 +235,22 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
             className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
               isAiActive
                 ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-950 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-800'
-                : 'text-slate-950 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                : 'text-black dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <div className="flex items-center gap-3">
               <Sparkles className={`w-4 h-4 shrink-0 ${isAiActive ? 'text-indigo-700 dark:text-indigo-400' : 'text-indigo-600 dark:text-indigo-400'}`} />
-              <span className="font-bold text-slate-950 dark:text-white">Asisten &amp; AI Guru</span>
+              <span className="font-bold text-black dark:text-white">Asisten &amp; AI Guru</span>
             </div>
             {openSubMenus.ai_guru ? (
-              <ChevronDown className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+              <ChevronDown className="w-4 h-4 text-black dark:text-slate-200" />
             ) : (
-              <ChevronRight className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+              <ChevronRight className="w-4 h-4 text-black dark:text-slate-200" />
             )}
           </button>
 
           {openSubMenus.ai_guru && (
-            <div className="ml-3 pl-3 my-1 border-l-2 border-indigo-300 dark:border-indigo-800 space-y-0.5">
+            <div className="ml-3 pl-3 my-1.5 border-l-2 border-indigo-400 dark:border-indigo-600 space-y-1">
               {/* AI Tutor Guru */}
               <button
                 id="sidebar_tab_ai_tutor"
@@ -258,11 +258,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'ai_tutor'
                     ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-indigo-300'
                 }`}
               >
-                <Bot className="w-3.5 h-3.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                <span className="truncate">AI Tutor Guru</span>
+                <Bot className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'ai_tutor' ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`} />
+                <span className="truncate text-black dark:text-white">AI Tutor Guru</span>
               </button>
 
               {/* AI Generator Soal */}
@@ -272,11 +272,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'ai_generator_soal'
                     ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-indigo-300'
                 }`}
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                <span className="truncate">AI Generator Soal</span>
+                <FileSpreadsheet className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'ai_generator_soal' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`} />
+                <span className="truncate text-black dark:text-white">AI Generator Soal</span>
               </button>
 
               {/* AI Perangkat Ajar */}
@@ -286,18 +286,18 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'ai_perangkat_ajar'
                     ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                    : 'text-slate-900 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-white'
+                    : 'text-black dark:text-white hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-indigo-300'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span className="truncate">AI Perangkat Ajar</span>
+                <Sparkles className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'ai_perangkat_ajar' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
+                <span className="truncate text-black dark:text-white">AI Perangkat Ajar</span>
               </button>
             </div>
           )}
         </div>
 
         {/* 6. Pengaturan Aplikasi */}
-        <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+        <div className="pt-2 border-t border-slate-300 dark:border-slate-800">
           {currentRole === 'operator' && (
             <button
               id="sidebar_tab_aplikasi_setting"
@@ -305,11 +305,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'aplikasi_setting'
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-                  : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+                  : 'text-black dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'
               }`}
             >
-              <Settings className={`w-4 h-4 shrink-0 ${activeTab === 'aplikasi_setting' ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
-              <span className="truncate">Pengaturan Aplikasi</span>
+              <Settings className={`w-4 h-4 shrink-0 ${activeTab === 'aplikasi_setting' ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+              <span className="truncate text-black dark:text-white">Pengaturan Aplikasi</span>
             </button>
           )}
         </div>
@@ -336,7 +336,7 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
         ];
 
     return (
-      <nav className="space-y-1">
+      <nav className="space-y-1.5">
         {items.map(item => {
           const IconComponent = item.icon;
           const isActive = activeTab === item.id;
@@ -348,11 +348,11 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
                 isActive
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-                  : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+                  : 'text-black dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'
               }`}
             >
-              <IconComponent className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
-              <span className="truncate">{item.label}</span>
+              <IconComponent className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-black dark:text-slate-200'}`} />
+              <span className="truncate text-black dark:text-white">{item.label}</span>
             </button>
           );
         })}
@@ -363,7 +363,7 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
   return (
     <div className="w-full h-full bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-col justify-between shrink-0 border-r border-[#DCE8F7] dark:border-slate-800">
       <div className="space-y-3">
-        <div className="px-3 py-1.5 text-[10px] font-black text-slate-800 dark:text-slate-300 uppercase tracking-widest">
+        <div className="px-3 py-1.5 text-[11px] font-extrabold text-black dark:text-slate-200 uppercase tracking-widest">
           Navigasi Utama ({currentRole === 'operator' ? 'Operator' : currentRole === 'guru' ? 'Guru' : currentRole === 'siswa' ? 'Siswa' : 'Orang Tua'})
         </div>
 
@@ -373,12 +373,12 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
       </div>
 
       {/* Footer Branding inside sidebar */}
-      <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4 px-1 space-y-1.5 shrink-0">
+      <div className="mt-6 border-t border-slate-300 dark:border-slate-800 pt-4 px-1 space-y-1.5 shrink-0">
         <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
           <GraduationCap className="w-5 h-5 shrink-0" />
-          <span className="font-extrabold text-xs tracking-wider text-slate-950 dark:text-white">Kelas Ku v2.0 2026</span>
+          <span className="font-extrabold text-xs tracking-wider text-black dark:text-white">Kelas Ku v2.0 2026</span>
         </div>
-        <p className="text-[10px] text-slate-800 dark:text-slate-300 font-medium leading-relaxed">
+        <p className="text-[11px] text-black dark:text-slate-200 font-semibold leading-relaxed">
           Pengelolaan Kelas Kurikulum Merdeka, Terintegrasi Google Apps &amp; Gemini AI.
         </p>
       </div>
