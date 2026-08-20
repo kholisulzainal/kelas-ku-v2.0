@@ -40,6 +40,7 @@ import { pullAllFromSupabase, getSupabaseConfig, syncRowToSupabase } from '../se
 import { isFirebaseConfigured, getStoredFirebaseConfig } from '../services/firebase';
 import { FirebaseSettingsTab } from './FirebaseSettingsTab';
 import { SupabaseSettingsTab } from './SupabaseSettingsTab';
+import { GeminiSettingsTab } from './GeminiSettingsTab';
 import { exportToExcel } from '../utils/export';
 import { Guru, Siswa, Absensi, ProfilSekolah } from '../types';
 
@@ -1339,7 +1340,12 @@ export function AplikasiSetting() {
           <FirebaseSettingsTab />
         </div>
 
-        {/* 3. Global Local Backup & Maintenance Section */}
+        {/* 3. Google Gemini AI Integration Module */}
+        <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/20 rounded-2xl border border-indigo-200 dark:border-indigo-900/40 space-y-4">
+          <GeminiSettingsTab />
+        </div>
+
+        {/* 4. Global Local Backup & Maintenance Section */}
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">

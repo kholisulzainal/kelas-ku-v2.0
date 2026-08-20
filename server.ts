@@ -8,30 +8,40 @@ import dotenv from 'dotenv';
 dotenv.config();
 process.env.TZ = 'Asia/Jakarta';
 
-let geminiAiClient: GoogleGenAI | null = null;
-function getGeminiClient() {
-  if (!geminiAiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY belum dikonfigurasi di lingkungan server.');
-    }
-    geminiAiClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build'
-        }
-      }
-    });
+let defaultGeminiAiClient: GoogleGenAI | null = null;
+function getGeminiClient(customApiKey?: string): GoogleGenAI {
+  const apiKey = (customApiKey && customApiKey.trim()) || process.env.GEMINI_API_KEY;
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error('GEMINI_API_KEY belum dikonfigurasi. Silakan pasang GEMINI_API_KEY di Environment Variables Vercel atau masukkan API Key di Pengaturan Aplikasi.');
   }
-  return geminiAiClient;
+
+  const cleanKey = apiKey.trim();
+  if (cleanKey === process.env.GEMINI_API_KEY && defaultGeminiAiClient) {
+    return defaultGeminiAiClient;
+  }
+
+  const client = new GoogleGenAI({
+    apiKey: cleanKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build'
+      }
+    }
+  });
+
+  if (cleanKey === process.env.GEMINI_API_KEY) {
+    defaultGeminiAiClient = client;
+  }
+
+  return client;
 }
 
 async function generateContentWithFallback(ai: GoogleGenAI, params: {
   contents: any[];
   config: any;
 }) {
-  const modelsToTry = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash'];
+  // Official valid Google GenAI models
+  const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro', 'gemini-1.5-flash'];
   let lastError: any = null;
 
   for (const model of modelsToTry) {
@@ -167,10 +177,10 @@ export function createApiApp() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  // CORS Middleware for incoming webhooks
+  // CORS Middleware for incoming webhooks & API requests
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-webhook-secret');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-webhook-secret, x-gemini-api-key');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
@@ -862,7 +872,9 @@ export function createApiApp() {
   // =========================================================================
   const handleAiTutorGuru = async (req: Request, res: Response) => {
     try {
-      const { prompt, history } = req.body || {};
+      const { prompt, history, customApiKey } = req.body || {};
+      const headerKey = req.headers['x-gemini-api-key'] as string;
+      const effectiveApiKey = (headerKey || customApiKey || '').trim();
 
       if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
         return res.status(400).json({
@@ -871,7 +883,15 @@ export function createApiApp() {
         });
       }
 
-      const ai = getGeminiClient();
+      let ai: GoogleGenAI;
+      try {
+        ai = getGeminiClient(effectiveApiKey);
+      } catch (keyErr: any) {
+        return res.status(400).json({
+          success: false,
+          error: keyErr.message || 'GEMINI_API_KEY belum dikonfigurasi di Environment Variables Vercel atau Pengaturan Aplikasi.'
+        });
+      }
 
       const systemInstruction = `Anda adalah "AI Tutor Guru", pakar pedagogi pendidikan, ahli Kurikulum Merdeka, dan kawan diskusi cerdas bagi para guru di Indonesia.
 

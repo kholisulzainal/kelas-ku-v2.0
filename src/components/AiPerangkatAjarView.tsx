@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { callAiTutor } from '../services/geminiClient';
 import {
   Sparkles,
   RefreshCw,
@@ -47,16 +48,11 @@ Sertakan struktur baku Kurikulum Merdeka dalam format Markdown rapi:
    - Pengayaan & Remedial`;
 
     try {
-      const res = await fetch('/api/ai/tutor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: promptText, history: [] })
-      });
-      const data = await res.json();
+      const data = await callAiTutor({ prompt: promptText, history: [] });
       if (data.success && data.reply) {
         setGeneratedResult(data.reply);
       } else {
-        setGeneratedResult(`⚠️ Gagal menyusun perangkat ajar: ${data.error || 'Terjadi masalah pada server AI.'}`);
+        setGeneratedResult(`⚠️ Gagal menyusun perangkat ajar: ${data.error || 'Terjadi masalah pada server AI. Pastikan Gemini API Key telah dikonfigurasi.'}`);
       }
     } catch (err: any) {
       setGeneratedResult(`⚠️ Kesalahan jaringan: ${err.message}`);

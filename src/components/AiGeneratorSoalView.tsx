@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { callAiTutor } from '../services/geminiClient';
 import {
   FileSpreadsheet,
   Sparkles,
@@ -669,17 +670,12 @@ ${poinPrompt}${docPrompt}${webhookInstruction}
 Pastikan skrip JavaScript 100% syntactically correct, tanpa error, dan siap di-run langsung di script.google.com!`;
 
     try {
-      const res = await fetch('/api/ai/tutor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: promptText, history: [] })
-      });
-      const data = await res.json();
+      const data = await callAiTutor({ prompt: promptText, history: [] });
       if (data.success && data.reply) {
         setGeneratedResult(data.reply);
         setActiveTab('script');
       } else {
-        setGeneratedResult(`⚠️ Gagal membuat skrip soal: ${data.error || 'Terjadi masalah pada server AI.'}`);
+        setGeneratedResult(`⚠️ Gagal membuat skrip soal: ${data.error || 'Terjadi masalah pada server AI. Pastikan Gemini API Key telah dikonfigurasi.'}`);
       }
     } catch (err: any) {
       setGeneratedResult(`⚠️ Kesalahan jaringan: ${err.message}`);
