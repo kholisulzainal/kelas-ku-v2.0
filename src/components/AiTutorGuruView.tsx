@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../services/db';
-import { callAiTutor, getStoredGeminiApiKey, setStoredGeminiApiKey, testGeminiApiKey } from '../services/geminiClient';
+import { callAiTutor } from '../services/geminiClient';
 import {
   Send,
   Sparkles,
@@ -23,13 +23,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   ArrowUp,
-  MessageSquare,
-  Key,
-  Settings,
-  AlertCircle,
-  CheckCircle2,
-  Eye,
-  EyeOff
+  MessageSquare
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -153,36 +147,6 @@ export function AiTutorGuruView({ currentUserId = 'guru_default' }: AiTutorGuruV
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<'flash' | 'pro'>('flash');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // API Key Quick Configuration Modal State
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState(() => getStoredGeminiApiKey());
-  const [showKeySecret, setShowKeySecret] = useState(false);
-  const [apiKeyStatusMsg, setApiKeyStatusMsg] = useState<{ success: boolean; text: string } | null>(null);
-  const [isTestingKey, setIsTestingKey] = useState(false);
-
-  const handleSaveApiKey = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setStoredGeminiApiKey(apiKeyInput);
-    setApiKeyStatusMsg({ success: true, text: 'API Key berhasil disimpan di peramban Anda!' });
-    setTimeout(() => {
-      setApiKeyStatusMsg(null);
-      setShowApiKeyModal(false);
-    }, 1500);
-  };
-
-  const handleTestKeyInModal = async () => {
-    setIsTestingKey(true);
-    setApiKeyStatusMsg(null);
-    try {
-      const res = await testGeminiApiKey(apiKeyInput);
-      setApiKeyStatusMsg({ success: res.success, text: res.message });
-    } catch (err: any) {
-      setApiKeyStatusMsg({ success: false, text: err.message || 'Gagal menguji key.' });
-    } finally {
-      setIsTestingKey(false);
-    }
-  };
 
   // Speech & Attachment States
   const [inputPrompt, setInputPrompt] = useState('');
@@ -416,7 +380,7 @@ export function AiTutorGuruView({ currentUserId = 'guru_default' }: AiTutorGuruV
           role: 'model',
           text: `⚠️ **Gagal terhubung ke Gemini AI**: ${data.error || 'Terjadi masalah koneksi.'}${
             isKeyMissing 
-              ? '\n\n👉 **Solusi Cepat**: Klik tombol **Kunci API** di kanan atas untuk memasukkan Gemini API Key gratis dari Google AI Studio.' 
+              ? '\n\n👉 **Solusi**: Silakan pastikan Gemini API Key telah dimasukkan di menu **Pengaturan Aplikasi** (oleh Operator) atau di Environment Variables Vercel.' 
               : ''
           }`,
           timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
@@ -641,15 +605,6 @@ export function AiTutorGuruView({ currentUserId = 'guru_default' }: AiTutorGuruV
 
         {/* Right Action buttons */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            onClick={() => setShowApiKeyModal(true)}
-            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-bold border border-indigo-200/80 dark:border-indigo-800 transition-all cursor-pointer"
-            title="Konfigurasi Kunci API Gemini (Opsional)"
-          >
-            <Key className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span className="hidden sm:inline">Kunci API</span>
-          </button>
-
           {/* Direct Link to Gemini - Hidden on small mobile, visible on lg screens */}
           <a
             href="https://gemini.google.com/app"
@@ -1020,113 +975,6 @@ export function AiTutorGuruView({ currentUserId = 'guru_default' }: AiTutorGuruV
 
         </main>
       </div>
-
-      {/* API Key Modal */}
-      {showApiKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-indigo-600 text-white rounded-xl">
-                  <Key className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-white">Pengaturan Kunci API Gemini</h3>
-                  <p className="text-[11px] text-slate-500">Koneksi langsung ke Google AI Studio untuk Guru AI</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowApiKeyModal(false)}
-                className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveApiKey} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Google Gemini API Key:
-                </label>
-                <div className="relative flex items-center">
-                  <input
-                    type={showKeySecret ? 'text' : 'password'}
-                    value={apiKeyInput}
-                    onChange={e => setApiKeyInput(e.target.value)}
-                    placeholder="Contoh: AIzaSy..."
-                    className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 pr-10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKeySecret(!showKeySecret)}
-                    className="absolute right-2.5 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  >
-                    {showKeySecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-[10px] text-slate-500">
-                  Belum punya API Key? Dapatkan gratis di{' '}
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline inline-flex items-center gap-0.5"
-                  >
-                    Google AI Studio <ExternalLink className="w-3 h-3" />
-                  </a>
-                </p>
-              </div>
-
-              {apiKeyStatusMsg && (
-                <div
-                  className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
-                    apiKeyStatusMsg.success
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                      : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                  }`}
-                >
-                  {apiKeyStatusMsg.success ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                  )}
-                  <span>{apiKeyStatusMsg.text}</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={handleTestKeyInModal}
-                  disabled={isTestingKey || !apiKeyInput.trim()}
-                  className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
-                >
-                  {isTestingKey ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-indigo-500" />}
-                  {isTestingKey ? 'Menguji...' : 'Uji Koneksi'}
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKeyModal(false)}
-                    className="px-3.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-all cursor-pointer"
-                  >
-                    Tutup
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Check className="w-4 h-4" />
-                    Simpan Key
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

@@ -60,13 +60,13 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
         <button
           id="sidebar_tab_profil_sekolah"
           onClick={() => setActiveTab('profil_sekolah')}
-          className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-semibold transition-all cursor-pointer ${
+          className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'profil_sekolah'
               ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-              : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+              : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
           }`}
         >
-          <School className={`w-4 h-4 shrink-0 ${activeTab === 'profil_sekolah' ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+          <School className={`w-4 h-4 shrink-0 ${activeTab === 'profil_sekolah' ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
           <span className="truncate">Profil Sekolah</span>
         </button>
 
@@ -74,13 +74,13 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
         <button
           id="sidebar_tab_profil_guru"
           onClick={() => setActiveTab('profil_guru')}
-          className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-semibold transition-all cursor-pointer ${
+          className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'profil_guru'
               ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-              : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+              : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
           }`}
         >
-          <UserCheck className={`w-4 h-4 shrink-0 ${activeTab === 'profil_guru' ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+          <UserCheck className={`w-4 h-4 shrink-0 ${activeTab === 'profil_guru' ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
           <span className="truncate">Profil Guru</span>
         </button>
 
@@ -90,124 +90,124 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
             onClick={() => toggleSubMenu('pengelolaan_kelas')}
             className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
               isPengelolaanActive
-                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60'
-                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-300 dark:border-blue-800'
+                : 'text-slate-950 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <div className="flex items-center gap-3">
-              <FolderKanban className={`w-4 h-4 shrink-0 ${isPengelolaanActive ? 'text-blue-600' : 'text-slate-500'}`} />
-              <span>Pengelolaan Kelas</span>
+              <FolderKanban className={`w-4 h-4 shrink-0 ${isPengelolaanActive ? 'text-blue-700 dark:text-blue-400' : 'text-slate-800 dark:text-slate-300'}`} />
+              <span className="font-bold text-slate-950 dark:text-white">Pengelolaan Kelas</span>
             </div>
             {openSubMenus.pengelolaan_kelas ? (
-              <ChevronDown className="w-4 h-4 text-slate-400" />
+              <ChevronDown className="w-4 h-4 text-slate-700 dark:text-slate-300" />
             ) : (
-              <ChevronRight className="w-4 h-4 text-slate-400" />
+              <ChevronRight className="w-4 h-4 text-slate-700 dark:text-slate-300" />
             )}
           </button>
 
           {openSubMenus.pengelolaan_kelas && (
-            <div className="ml-3 pl-3 my-1 border-l-2 border-slate-200 dark:border-slate-800 space-y-0.5">
+            <div className="ml-3 pl-3 my-1 border-l-2 border-slate-300 dark:border-slate-700 space-y-0.5">
               <button
                 id="sidebar_tab_mata_pelajaran"
                 onClick={() => setActiveTab('mata_pelajaran')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'mata_pelajaran'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
                 }`}
               >
-                <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                <BookOpen className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
                 <span className="truncate">Mata Pelajaran</span>
               </button>
 
               <button
                 id="sidebar_tab_jadwal_pelajaran"
                 onClick={() => setActiveTab('jadwal_pelajaran')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'jadwal_pelajaran'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
                 }`}
               >
-                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <Calendar className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
                 <span className="truncate">Jadwal Pelajaran</span>
               </button>
 
               <button
                 id="sidebar_tab_data_siswa"
                 onClick={() => setActiveTab('data_siswa')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'data_siswa'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
                 }`}
               >
-                <Users className="w-3.5 h-3.5 shrink-0" />
+                <Users className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
                 <span className="truncate">Data Siswa</span>
               </button>
 
               <button
                 id="sidebar_tab_absensi"
                 onClick={() => setActiveTab('absensi')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'absensi'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
                 }`}
               >
-                <CheckSquare className="w-3.5 h-3.5 shrink-0" />
+                <CheckSquare className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
                 <span className="truncate">Absensi Siswa</span>
               </button>
 
               <button
                 id="sidebar_tab_tugas_harian"
                 onClick={() => setActiveTab('tugas_harian')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'tugas_harian'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
                 }`}
               >
-                <Bookmark className="w-3.5 h-3.5 shrink-0" />
+                <Bookmark className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
                 <span className="truncate">Tugas Google Form</span>
               </button>
 
               <button
                 id="sidebar_tab_asesmen"
                 onClick={() => setActiveTab('asesmen')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'asesmen'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
                 }`}
               >
-                <Award className="w-3.5 h-3.5 shrink-0" />
+                <Award className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
                 <span className="truncate">Asesmen Kurikulum</span>
               </button>
 
               <button
                 id="sidebar_tab_temuan_khusus"
                 onClick={() => setActiveTab('temuan_khusus')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'temuan_khusus'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
                 }`}
               >
-                <AlertOctagon className="w-3.5 h-3.5 shrink-0" />
+                <AlertOctagon className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
                 <span className="truncate">Temuan Khusus</span>
               </button>
 
               <button
                 id="sidebar_tab_kalender_akademik"
                 onClick={() => setActiveTab('kalender_akademik')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'kalender_akademik'
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-white'
                 }`}
               >
-                <FileText className="w-3.5 h-3.5 shrink-0" />
+                <FileText className="w-3.5 h-3.5 shrink-0 text-slate-700 dark:text-slate-300" />
                 <span className="truncate">Kalender &amp; Jadwal</span>
               </button>
             </div>
@@ -218,13 +218,13 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
         <button
           id="sidebar_tab_buku_digital_admin"
           onClick={() => setActiveTab('buku_digital_admin')}
-          className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-semibold transition-all cursor-pointer ${
+          className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'buku_digital_admin'
               ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-              : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+              : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
           }`}
         >
-          <Library className={`w-4 h-4 shrink-0 ${activeTab === 'buku_digital_admin' ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+          <Library className={`w-4 h-4 shrink-0 ${activeTab === 'buku_digital_admin' ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
           <span className="truncate">Buku Digital &amp; Modul</span>
         </button>
 
@@ -234,34 +234,34 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
             onClick={() => toggleSubMenu('ai_guru')}
             className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
               isAiActive
-                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60'
-                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-950 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-800'
+                : 'text-slate-950 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <div className="flex items-center gap-3">
-              <Sparkles className={`w-4 h-4 shrink-0 ${isAiActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-indigo-500'}`} />
-              <span>Asisten &amp; AI Guru</span>
+              <Sparkles className={`w-4 h-4 shrink-0 ${isAiActive ? 'text-indigo-700 dark:text-indigo-400' : 'text-indigo-600 dark:text-indigo-400'}`} />
+              <span className="font-bold text-slate-950 dark:text-white">Asisten &amp; AI Guru</span>
             </div>
             {openSubMenus.ai_guru ? (
-              <ChevronDown className="w-4 h-4 text-slate-400" />
+              <ChevronDown className="w-4 h-4 text-slate-700 dark:text-slate-300" />
             ) : (
-              <ChevronRight className="w-4 h-4 text-slate-400" />
+              <ChevronRight className="w-4 h-4 text-slate-700 dark:text-slate-300" />
             )}
           </button>
 
           {openSubMenus.ai_guru && (
-            <div className="ml-3 pl-3 my-1 border-l-2 border-indigo-200 dark:border-indigo-900/60 space-y-0.5">
-              {/* AI Tutor Guru (NO EMOJI) */}
+            <div className="ml-3 pl-3 my-1 border-l-2 border-indigo-300 dark:border-indigo-800 space-y-0.5">
+              {/* AI Tutor Guru */}
               <button
                 id="sidebar_tab_ai_tutor"
                 onClick={() => setActiveTab('ai_tutor')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'ai_tutor'
                     ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-white'
                 }`}
               >
-                <Bot className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+                <Bot className="w-3.5 h-3.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
                 <span className="truncate">AI Tutor Guru</span>
               </button>
 
@@ -269,13 +269,13 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
               <button
                 id="sidebar_tab_ai_generator_soal"
                 onClick={() => setActiveTab('ai_generator_soal')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'ai_generator_soal'
                     ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-white'
                 }`}
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span className="truncate">AI Generator Soal</span>
               </button>
 
@@ -283,13 +283,13 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
               <button
                 id="sidebar_tab_ai_perangkat_ajar"
                 onClick={() => setActiveTab('ai_perangkat_ajar')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'ai_perangkat_ajar'
                     ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-slate-800'
+                    : 'text-slate-900 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-700 dark:hover:text-white'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                <Sparkles className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 <span className="truncate">AI Perangkat Ajar</span>
               </button>
             </div>
@@ -297,18 +297,18 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
         </div>
 
         {/* 6. Pengaturan Aplikasi */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
           {currentRole === 'operator' && (
             <button
               id="sidebar_tab_aplikasi_setting"
               onClick={() => setActiveTab('aplikasi_setting')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-semibold transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'aplikasi_setting'
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+                  : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
               }`}
             >
-              <Settings className={`w-4 h-4 shrink-0 ${activeTab === 'aplikasi_setting' ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+              <Settings className={`w-4 h-4 shrink-0 ${activeTab === 'aplikasi_setting' ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
               <span className="truncate">Pengaturan Aplikasi</span>
             </button>
           )}
@@ -345,13 +345,13 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
               key={item.id}
               id={`sidebar_tab_${item.id}`}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-semibold transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
                 isActive
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
+                  : 'text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-blue-600 dark:hover:text-white'
               }`}
             >
-              <IconComponent className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+              <IconComponent className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-800 dark:text-slate-300'}`} />
               <span className="truncate">{item.label}</span>
             </button>
           );
@@ -363,7 +363,7 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
   return (
     <div className="w-full h-full bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-col justify-between shrink-0 border-r border-[#DCE8F7] dark:border-slate-800">
       <div className="space-y-3">
-        <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+        <div className="px-3 py-1.5 text-[10px] font-black text-slate-800 dark:text-slate-300 uppercase tracking-widest">
           Navigasi Utama ({currentRole === 'operator' ? 'Operator' : currentRole === 'guru' ? 'Guru' : currentRole === 'siswa' ? 'Siswa' : 'Orang Tua'})
         </div>
 
@@ -373,17 +373,15 @@ export function Sidebar({ currentRole, activeTab, setActiveTab }: SidebarProps) 
       </div>
 
       {/* Footer Branding inside sidebar */}
-      <div className="mt-6 border-t border-[#DCE8F7] dark:border-slate-800 pt-4 px-1 space-y-1.5 shrink-0">
+      <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4 px-1 space-y-1.5 shrink-0">
         <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
           <GraduationCap className="w-5 h-5 shrink-0" />
-          <span className="font-bold text-xs tracking-wider">Kelas Ku v2.0 2026</span>
+          <span className="font-extrabold text-xs tracking-wider text-slate-950 dark:text-white">Kelas Ku v2.0 2026</span>
         </div>
-        <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
+        <p className="text-[10px] text-slate-800 dark:text-slate-300 font-medium leading-relaxed">
           Pengelolaan Kelas Kurikulum Merdeka, Terintegrasi Google Apps &amp; Gemini AI.
         </p>
       </div>
     </div>
   );
 }
-
-
